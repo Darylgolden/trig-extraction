@@ -21,4 +21,4 @@ structure RewriteRule where
 opaque runEgg (target : String) (rws : Array RewriteRule) : Lean.MetaM EggResult
 
 @[extern "query_egraph"]
-opaque EGraph.query (query : String) : EggResult
+opaque EGraph.query (egraph : EGraph) (query : String) : EggResult
