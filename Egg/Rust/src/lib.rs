@@ -3,7 +3,13 @@ use std::ffi::{c_char, c_void, CStr, CString};
 
 define_language! { 
     pub enum L { 
-        "0" = Zero,
+        Num(i32),
+        "+" = Add([Id; 2]),
+        "*" = Mul([Id; 2]),
+        "pow" = Pow([Id; 2]),
+        "sin" = Sin([Id; 2]),
+        "cos" = Cos([Id; 2]),
+        Symbol(Symbol),
     }
 }
 
@@ -59,17 +65,50 @@ pub struct EggResult {
     egraph: Option<Box<EGraph<L, ()>>>
 }
 
+
+fn make_rules(rws: Vec<RewriteRule>) -> Vec<Rewrite<L, ()>> {
+    let mut rules = Vec::new();
+    for r in &rws {
+        let lhs_pattern: Pattern<L> = r.lhs.parse().unwrap();
+        let rhs_pattern: Pattern<L> = r.rhs.parse().unwrap();
+        rules.push(Rewrite::new(
+            r.name.clone(),
+            lhs_pattern,
+            rhs_pattern
+        ).unwrap());
+    }
+    rules
+}
+
+fn simplify_expr(target: String, rws: Vec<RewriteRule>) -> EggResult {
+    let expr: RecExpr<L> = target.parse().unwrap();
+    let rewrites = make_rules(rws);
+    let runner = Runner::default().with_expr(&expr).run(&rewrites);
+    let extractor = Extractor::new(&runner.egraph, AstSize);
+    let (_cost, best) = extractor.find_best(runner.roots[0]);
+    let egraph = runner.egraph;
+    EggResult {
+        success: true,
+        term: string_to_c_str(best.to_string()),
+        egraph: Some(Box::new(egraph)),
+    }
+}
+
+
 #[no_mangle]
 pub extern "C" fn run_egg(target: *const c_char, rws: CRewriteRuleArray, _env: *const c_void) -> EggResult {
     let target = c_str_to_string(target);
     let rws    = rws.to_vec();
-    let egraph = EGraph::default();
+    // let egraph = EGraph::default();
 
-    EggResult {
-        success: true,
-        term: string_to_c_str(format!("{:?}", target)),
-        egraph: Some(Box::new(egraph))
-    }
+    return simplify_expr(target, rws);
+
+
+    // EggResult {
+    //     success: true,
+    //     term: string_to_c_str(format!("{:?}", target)),
+    //     egraph: Some(Box::new(egraph))
+    // }
 }
 
 #[no_mangle]
