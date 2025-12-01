@@ -139,11 +139,11 @@ elab "toEggStringRule" t:term : term => do
 
 def rwRules : Array RewriteRule :=
   #[⟨"test", "(+ 1 1)", "2"⟩,
-    -- ⟨"test2", "(+ (pow (sin ?x) 2) (pow (cos ?y) 2))", "1"⟩
+    ⟨"test2", "(+ (pow (sin ?x) 2) (pow (cos ?x) 2))", "1"⟩
     ]
 
 elab "#runEgg" t:term : command => do
-  Command.liftTermElabM do
+  Command.runTermElabM fun _ => do
     let e ← elabTerm t none
     let stx' ← delab e
     let l ← syntaxToSymbolLang stx'

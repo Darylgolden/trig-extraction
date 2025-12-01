@@ -7,8 +7,8 @@ define_language! {
         "+" = Add([Id; 2]),
         "*" = Mul([Id; 2]),
         "pow" = Pow([Id; 2]),
-        "sin" = Sin([Id; 2]),
-        "cos" = Cos([Id; 2]),
+        "sin" = Sin([Id; 1]),
+        "cos" = Cos([Id; 1]),
         Symbol(Symbol),
     }
 }
