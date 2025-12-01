@@ -33,4 +33,4 @@ variable (x y : ℝ)
 #check getASTSize ((1 + 2) * 3)
 -- 5
 #check runEgg (toEggStringExpr (1 + 1)) rwRules
-#runEgg (x)
+-- #runEgg (5)
