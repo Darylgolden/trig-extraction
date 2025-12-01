@@ -8,11 +8,17 @@ import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 open Lean Elab Term Meta PrettyPrinter
 open Real
 
+inductive PrintType where
+  | NormalExpr
+  | Rule
+
 inductive SymbolLang where
   | Var (name : String) : SymbolLang
   | Add (left right : SymbolLang) : SymbolLang
   | Mul (left right : SymbolLang) : SymbolLang
+  | Pow (left right : SymbolLang) : SymbolLang
   | Sin (arg : SymbolLang) : SymbolLang
+  | Cos (arg : SymbolLang) : SymbolLang
   | Const (val : String) : SymbolLang
   | Other (stx : String) : SymbolLang
 deriving Repr, BEq
@@ -22,7 +28,9 @@ def ASTSize (lang : SymbolLang) : Nat :=
   | .Var _ => 1
   | .Add left right => 1 + ASTSize left + ASTSize right
   | .Mul left right => 1 + ASTSize left + ASTSize right
+  | .Pow base exponent => 1 + ASTSize base + ASTSize exponent
   | .Sin arg => 1 + ASTSize arg
+  | .Cos arg => 1 + ASTSize arg
   | .Const _ => 1
   | .Other _ => 1
 
@@ -39,6 +47,19 @@ partial def TermCounter (t : Term) : Nat :=
   | `(term| ($subterm)) => TermCounter subterm
   | _ => 1
 
+partial def LangToString (lang : SymbolLang) (typ : PrintType) : String :=
+  match lang with
+  | .Var x => match typ with
+    | .NormalExpr => x
+    | .Rule => s!"?{x}"
+  | .Add left right => s!"(+ {LangToString left typ} {LangToString right typ})"
+  | .Mul left right => s!"(* {LangToString left typ} {LangToString right typ})"
+  | .Pow base exponent => s!"(pow {LangToString base typ} {LangToString exponent typ})"
+  | .Sin arg => s!"(sin {LangToString arg typ})"
+  | .Cos arg => s!"(cos {LangToString arg typ})"
+  | .Const c => c
+  | .Other o => o
+
 partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
   match stx with
   | `(term| $left + $right) =>
@@ -51,9 +72,18 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
     let rightAST ← syntaxToSymbolLang right
     return .Mul leftAST rightAST
 
+  | `(term| $base ^ $exponent) =>
+    let baseAST ← syntaxToSymbolLang base
+    let exponentAST ← syntaxToSymbolLang exponent
+    return .Pow baseAST exponentAST
+
   | `(term| sin $arg) =>
     let argAST ← syntaxToSymbolLang arg
     return .Sin argAST
+
+  | `(term| cos $arg) =>
+    let argAST ← syntaxToSymbolLang arg
+    return .Cos argAST
 
   | `(term| $id:ident) =>
     return .Var id.getId.toString
@@ -67,6 +97,8 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
   | _ =>
     let prettyStx ← ppTerm ⟨stx⟩
     return .Other (prettyStx.pretty)
+
+
 
 elab "termMatch" t:term : term => do
   return mkNatLit (TermCounter t)
@@ -97,7 +129,35 @@ elab "getASTSize" t:term : term => do
   let size := ASTSize ast
   return mkNatLit size
 
-variable (x : ℝ)
+elab "toEggStringExpr" t:term : term => do
+  let e ← elabTerm t none
+  let stx' ← delab e
+  let l ← syntaxToSymbolLang stx'
+  let str := LangToString l PrintType.NormalExpr
+  return mkStrLit str
+
+elab "toEggStringRule" t:term : term => do
+  let e ← elabTerm t none
+  let stx' ← delab e
+  let l ← syntaxToSymbolLang stx'
+  let str := LangToString l PrintType.Rule
+  return mkStrLit str
+
+
+def rwRules : Array RewriteRule :=
+  #[⟨"test", "(+ 1 1)", "2"⟩]
+
+elab "#runEgg" t:term : command => do
+  Command.liftTermElabM do
+    let e ← elabTerm t none
+    let stx' ← delab e
+    let l ← syntaxToSymbolLang stx'
+    let str := LangToString l PrintType.NormalExpr
+    let result ← runEgg str rwRules
+    logInfo m!"{result.term}"
+
+
+variable (x y : ℝ)
 #check termMatch 2 * 2
 #check termMatch (sin x)^2 + (cos x)^2
 #check termMatch sin (x + x)
@@ -173,8 +233,15 @@ variable (x : ℝ)
 #check exprSyntaxToAST (sin x + sin x)
 #check exprSyntaxToAST (sin x)
 #check exprSyntaxToAST (2.5 * sin x)
+#check toEggStringExpr (2.5 * sin x)
+#check toEggStringExpr ((1 + 2) * 3)
+#check toEggStringExpr (sin x + sin x)
+#check toEggStringExpr (2^2)
+#check toEggStringRule ((sin x)^2 + (cos y)^2)
 
 #check getASTSize (2.0 * sin x)
 -- 4
 #check getASTSize ((1 + 2) * 3)
 -- 5
+#check runEgg (toEggStringExpr (1 + 1)) rwRules
+#runEgg (1 + 1)
