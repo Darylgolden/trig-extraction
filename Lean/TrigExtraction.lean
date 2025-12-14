@@ -35,3 +35,9 @@ variable (x y : ℝ)
 #check runEgg (toEggStringExpr (1 + 1)) rwRules
 #runEgg (1)
 #runEgg ((sin x)^2 + (cos x)^2)
+#check Real.tan_mul_cos
+
+#check sin_add
+#print_lhs_rhs_metavars sin_add
+
+#parse_equalities Real.sin_add

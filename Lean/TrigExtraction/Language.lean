@@ -93,6 +93,25 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
     let prettyStx ← ppTerm ⟨stx⟩
     return .Other (prettyStx.pretty)
 
+inductive ParseResult where
+  | success (name : Name) (lhs rhs : Expr)
+  | failure (name : Name) (e : Expr) (reason : String)
+
+def parseEqualityExpr (name : Name) (e : Expr) : MetaM (ParseResult) := do
+  let (_, _, conclusion) ← forallMetaTelescope e
+  match conclusion.eq? with
+  | some (_, lhs, rhs) => return ParseResult.success name lhs rhs
+  | none => return ParseResult.failure name conclusion "some reason"
+
+def parseEquality (name : Name) : MetaM (ParseResult) := do
+  let info ← getConstInfo name
+  let type := info.type
+  parseEqualityExpr name type
+
+def parseEqualities (eqs : List Name) : MetaM (List ParseResult) := do
+  eqs.mapM fun name =>
+    parseEquality name
+
 elab "termMatch" t:term : term => do
   return mkNatLit (TermCounter t)
 
@@ -150,3 +169,36 @@ elab "#runEgg" t:term : command => do
     let str := LangToString l PrintType.NormalExpr
     let result ← runEgg str rwRules
     logInfo m!"{result.term}"
+
+elab "#print_lhs_rhs " id:ident : command => do
+  let name ← resolveGlobalConstNoOverload id
+  Command.liftTermElabM do
+    let info ← getConstInfo name
+    let type := info.type
+    match type.eq? with
+    | some (_, lhs, rhs) =>
+      logInfo m!"Theorem: {name}\n {lhs} = {rhs}"
+    | none =>
+      logError m!"{name} is not an equality. It is {type}"
+
+elab "#print_lhs_rhs_metavars" id:ident : command => do
+  let name ← resolveGlobalConstNoOverload id
+  Command.liftTermElabM fun _ => do
+    let info ← getConstInfo name
+    let type := info.type
+    let (args, _, conclusion) ← forallMetaTelescope type
+    logInfo m!"args is {args} and conclusion is {conclusion}"
+
+elab "#parse_equalities " ids:ident+ : command => do
+  let eqs ← Command.liftTermElabM do
+    ids.toList.mapM fun id => do
+      let name ← resolveGlobalConstNoOverload id.raw
+      return name
+  Command.liftTermElabM do
+    let results ← parseEqualities eqs
+    for result in results do
+      match result with
+      | ParseResult.success name lhs rhs =>
+        logInfo m!"[OK] {name}: LHS: {lhs} RHS: {rhs}"
+      | ParseResult.failure name e reason =>
+        logWarning m!"[WARN] {name} failed to parse; expr is {e}, reason: {reason}"
