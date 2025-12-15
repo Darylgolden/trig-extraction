@@ -9,6 +9,8 @@ define_language! {
         "-" = Sub([Id; 2]),
         "/" = Div([Id; 2]),
         "pow" = Pow([Id; 2]),
+        "neg" = Neg([Id; 1]),
+        "inv" = Inv([Id; 1]),
         "sin" = Sin([Id; 1]),
         "cos" = Cos([Id; 1]),
         Symbol(Symbol),
@@ -64,7 +66,8 @@ impl CRewriteRuleArray {
 pub struct EggResult {
     success: bool,
     term: *const c_char,
-    egraph: Option<Box<EGraph<L, ()>>>
+    egraph: Option<Box<EGraph<L, ()>>>,
+    explanation: *const c_char
 }
 
 
@@ -85,14 +88,16 @@ fn make_rules(rws: Vec<RewriteRule>) -> Vec<Rewrite<L, ()>> {
 fn simplify_expr(target: String, rws: Vec<RewriteRule>) -> EggResult {
     let expr: RecExpr<L> = target.parse().unwrap();
     let rewrites = make_rules(rws);
-    let runner = Runner::default().with_expr(&expr).run(&rewrites);
+    let mut runner = Runner::default().with_explanations_enabled().with_expr(&expr).run(&rewrites);
     let extractor = Extractor::new(&runner.egraph, AstSize);
     let (_cost, best) = extractor.find_best(runner.roots[0]);
+    let expl = runner.explain_equivalence(&expr, &best).get_flat_string();
     let egraph = runner.egraph;
     EggResult {
         success: true,
         term: string_to_c_str(best.to_string()),
         egraph: Some(Box::new(egraph)),
+        explanation: string_to_c_str(expl)
     }
 }
 
@@ -121,6 +126,7 @@ pub unsafe extern "C" fn query_egraph(egraph: *mut EGraph<L, ()>, query: *const 
         success: true,
         term: query,
         egraph: None,
+        explanation: string_to_c_str("".to_string())
     }
 }
 

@@ -44,3 +44,5 @@ variable (x y : ℝ)
 #runEggTest ((cos x)^2 + (sin x)^2)
 #runEggTest x + 0
 #runEggTest (1 - (sin x)^2)
+#runEggTest sin ((1 + x) - x)^2 + (cos (1))^2
+#runEggTest (1 + x) - x

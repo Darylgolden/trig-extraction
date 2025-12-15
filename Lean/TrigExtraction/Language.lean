@@ -14,6 +14,8 @@ inductive SymbolLang where
   | Mul (left right : SymbolLang) : SymbolLang
   | Sub (left right : SymbolLang) : SymbolLang
   | Div (left right : SymbolLang) : SymbolLang
+  | Neg (arg : SymbolLang) : SymbolLang
+  | Inv (arg : SymbolLang) : SymbolLang
   | Pow (left right : SymbolLang) : SymbolLang
   | Sin (arg : SymbolLang) : SymbolLang
   | Cos (arg : SymbolLang) : SymbolLang
@@ -28,6 +30,8 @@ def ASTSize (lang : SymbolLang) : Nat :=
   | .Mul left right => 1 + ASTSize left + ASTSize right
   | .Sub left right => 1 + ASTSize left + ASTSize right
   | .Div left right => 1 + ASTSize left + ASTSize right
+  | .Neg arg => 1 + ASTSize arg
+  | .Inv arg => 1 + ASTSize arg
   | .Pow base exponent => 1 + ASTSize base + ASTSize exponent
   | .Sin arg => 1 + ASTSize arg
   | .Cos arg => 1 + ASTSize arg
@@ -41,6 +45,8 @@ partial def TermCounter (t : Term) : Nat :=
   | `(term| $left * $right) => 1 + TermCounter left + TermCounter right
   | `(term| $left / $right) => 1 + TermCounter left + TermCounter right
   | `(term| $left ^ $right) => 1 + TermCounter left + TermCounter right
+  | `(term| -$arg) => 1 + TermCounter arg
+  | `(term| $arg⁻¹) => 1 + TermCounter arg
   | `(term| sin $arg) => 1 + TermCounter arg
   | `(term| cos $arg) => 1 + TermCounter arg
   | `(term| tan $arg) => 1 + TermCounter arg
@@ -68,6 +74,8 @@ partial def SymbolLangToString (lang : SymbolLang) : String :=
   | .Sub left right => s!"(- {SymbolLangToString left} {SymbolLangToString right})"
   | .Div left right => s!"(/ {SymbolLangToString left} {SymbolLangToString right})"
   | .Pow base exponent => s!"(pow {SymbolLangToString base} {SymbolLangToString exponent})"
+  | .Neg arg => s!"(neg {SymbolLangToString arg})"
+  | .Inv arg => s!"(inv {SymbolLangToString arg})"
   | .Sin arg => s!"(sin {SymbolLangToString arg})"
   | .Cos arg => s!"(cos {SymbolLangToString arg})"
   | .Const c => c
@@ -99,6 +107,14 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
     let baseAST ← syntaxToSymbolLang base
     let exponentAST ← syntaxToSymbolLang exponent
     return .Pow baseAST exponentAST
+
+  | `(term| -$arg) =>
+    let argAST ← syntaxToSymbolLang arg
+    return .Neg argAST
+
+  | `(term| $arg⁻¹) =>
+    let argAST ← syntaxToSymbolLang arg
+    return .Inv argAST
 
   | `(term| sin $arg) =>
     let argAST ← syntaxToSymbolLang arg
@@ -224,11 +240,13 @@ elab "#runEggTest" t:term : command => do
     let stx' ← delab e
     let l ← syntaxToSymbolLang stx'
     let str := SymbolLangToString l
+    logInfo m!"Target parsed as {str}"
     let rw_rules ← parseEqualities trigRules
     for rule in rw_rules do
       logInfo m!"Rule: {rule.name}: {rule.lhs} => {rule.rhs}"
     let result ← runEgg str rw_rules
     logInfo m!"{result.term}"
+    logInfo m!"Explanation: \n {result.explanation}"
 
 elab "#print_lhs_rhs " id:ident : command => do
   let name ← resolveGlobalConstNoOverload id

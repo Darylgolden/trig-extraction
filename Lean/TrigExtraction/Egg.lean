@@ -9,6 +9,7 @@ structure EggResult where
   success : Bool
   term    : String
   egraph? : Option EGraph
+  explanation : String
 deriving Inhabited
 
 -- IMPORTANT: The C interface to egg depends on the order of these fields.
