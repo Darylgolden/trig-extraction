@@ -1,6 +1,7 @@
 import Lean.Elab.Term
 import Lean.PrettyPrinter
 import TrigExtraction.Egg
+import TrigExtraction.Rules
 open Lean Elab Term Meta PrettyPrinter
 
 inductive PrintType where
@@ -11,6 +12,8 @@ inductive SymbolLang where
   | Var (name : String) : SymbolLang
   | Add (left right : SymbolLang) : SymbolLang
   | Mul (left right : SymbolLang) : SymbolLang
+  | Sub (left right : SymbolLang) : SymbolLang
+  | Div (left right : SymbolLang) : SymbolLang
   | Pow (left right : SymbolLang) : SymbolLang
   | Sin (arg : SymbolLang) : SymbolLang
   | Cos (arg : SymbolLang) : SymbolLang
@@ -23,6 +26,8 @@ def ASTSize (lang : SymbolLang) : Nat :=
   | .Var _ => 1
   | .Add left right => 1 + ASTSize left + ASTSize right
   | .Mul left right => 1 + ASTSize left + ASTSize right
+  | .Sub left right => 1 + ASTSize left + ASTSize right
+  | .Div left right => 1 + ASTSize left + ASTSize right
   | .Pow base exponent => 1 + ASTSize base + ASTSize exponent
   | .Sin arg => 1 + ASTSize arg
   | .Cos arg => 1 + ASTSize arg
@@ -42,16 +47,29 @@ partial def TermCounter (t : Term) : Nat :=
   | `(term| ($subterm)) => TermCounter subterm
   | _ => 1
 
-partial def LangToString (lang : SymbolLang) (typ : PrintType) : String :=
+-- partial def LangToString (lang : SymbolLang) (typ : PrintType) : String :=
+--   match lang with
+--   | .Var x => match typ with
+--     | .NormalExpr => x
+--     | .Rule => s!"?{x}"
+--   | .Add left right => s!"(+ {LangToString left typ} {LangToString right typ})"
+--   | .Mul left right => s!"(* {LangToString left typ} {LangToString right typ})"
+--   | .Pow base exponent => s!"(pow {LangToString base typ} {LangToString exponent typ})"
+--   | .Sin arg => s!"(sin {LangToString arg typ})"
+--   | .Cos arg => s!"(cos {LangToString arg typ})"
+--   | .Const c => c
+--   | .Other o => o
+
+partial def SymbolLangToString (lang : SymbolLang) : String :=
   match lang with
-  | .Var x => match typ with
-    | .NormalExpr => x
-    | .Rule => s!"?{x}"
-  | .Add left right => s!"(+ {LangToString left typ} {LangToString right typ})"
-  | .Mul left right => s!"(* {LangToString left typ} {LangToString right typ})"
-  | .Pow base exponent => s!"(pow {LangToString base typ} {LangToString exponent typ})"
-  | .Sin arg => s!"(sin {LangToString arg typ})"
-  | .Cos arg => s!"(cos {LangToString arg typ})"
+  | .Var x => x
+  | .Add left right => s!"(+ {SymbolLangToString left} {SymbolLangToString right})"
+  | .Mul left right => s!"(* {SymbolLangToString left} {SymbolLangToString right})"
+  | .Sub left right => s!"(- {SymbolLangToString left} {SymbolLangToString right})"
+  | .Div left right => s!"(/ {SymbolLangToString left} {SymbolLangToString right})"
+  | .Pow base exponent => s!"(pow {SymbolLangToString base} {SymbolLangToString exponent})"
+  | .Sin arg => s!"(sin {SymbolLangToString arg})"
+  | .Cos arg => s!"(cos {SymbolLangToString arg})"
   | .Const c => c
   | .Other o => o
 
@@ -66,6 +84,16 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
     let leftAST ← syntaxToSymbolLang left
     let rightAST ← syntaxToSymbolLang right
     return .Mul leftAST rightAST
+
+  | `(term| $left - $right) =>
+    let leftAST ← syntaxToSymbolLang left
+    let rightAST ← syntaxToSymbolLang right
+    return .Sub leftAST rightAST
+
+  | `(term | $left / $right) =>
+    let leftAST ← syntaxToSymbolLang left
+    let rightAST ← syntaxToSymbolLang right
+    return .Div leftAST rightAST
 
   | `(term| $base ^ $exponent) =>
     let baseAST ← syntaxToSymbolLang base
@@ -93,6 +121,12 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
     let prettyStx ← ppTerm ⟨stx⟩
     return .Other (prettyStx.pretty)
 
+def ExprToString (e : Expr) : MetaM String := do
+  let stx' ← delab e
+  let l ← syntaxToSymbolLang stx'
+  let s := SymbolLangToString l
+  return s
+
 inductive ParseResult where
   | success (name : Name) (lhs rhs : Expr)
   | failure (name : Name) (e : Expr) (reason : String)
@@ -108,9 +142,23 @@ def parseEquality (name : Name) : MetaM (ParseResult) := do
   let type := info.type
   parseEqualityExpr name type
 
-def parseEqualities (eqs : List Name) : MetaM (List ParseResult) := do
+def parseEqualitiesInt (eqs : List Name) : MetaM (List ParseResult) := do
   eqs.mapM fun name =>
     parseEquality name
+
+def parseEqualities (eqs : List Name) : MetaM (Array RewriteRule) := do
+  let parsedEqsList ← (parseEqualitiesInt eqs)
+  let mut successfulEqsList : List RewriteRule := []
+  for m in parsedEqsList do
+    match m with
+    | ParseResult.success name lhs rhs =>
+      let lhsStr ← ExprToString lhs
+      let rhsStr ← ExprToString rhs
+      successfulEqsList := successfulEqsList ++ [⟨name.toString, lhsStr, rhsStr⟩]
+    | ParseResult.failure _ _ _ => pure ()
+  let successfulEqsArray := successfulEqsList.toArray
+  return successfulEqsArray
+
 
 elab "termMatch" t:term : term => do
   return mkNatLit (TermCounter t)
@@ -145,14 +193,14 @@ elab "toEggStringExpr" t:term : term => do
   let e ← elabTerm t none
   let stx' ← delab e
   let l ← syntaxToSymbolLang stx'
-  let str := LangToString l PrintType.NormalExpr
+  let str := SymbolLangToString l
   return mkStrLit str
 
 elab "toEggStringRule" t:term : term => do
   let e ← elabTerm t none
   let stx' ← delab e
   let l ← syntaxToSymbolLang stx'
-  let str := LangToString l PrintType.Rule
+  let str := SymbolLangToString l
   return mkStrLit str
 
 
@@ -166,8 +214,20 @@ elab "#runEgg" t:term : command => do
     let e ← elabTerm t none
     let stx' ← delab e
     let l ← syntaxToSymbolLang stx'
-    let str := LangToString l PrintType.NormalExpr
+    let str := SymbolLangToString l
     let result ← runEgg str rwRules
+    logInfo m!"{result.term}"
+
+elab "#runEggTest" t:term : command => do
+  Command.runTermElabM fun _ => do
+    let e ← elabTerm t none
+    let stx' ← delab e
+    let l ← syntaxToSymbolLang stx'
+    let str := SymbolLangToString l
+    let rw_rules ← parseEqualities trigRules
+    for rule in rw_rules do
+      logInfo m!"Rule: {rule.name}: {rule.lhs} => {rule.rhs}"
+    let result ← runEgg str rw_rules
     logInfo m!"{result.term}"
 
 elab "#print_lhs_rhs " id:ident : command => do
@@ -195,7 +255,7 @@ elab "#parse_equalities " ids:ident+ : command => do
       let name ← resolveGlobalConstNoOverload id.raw
       return name
   Command.liftTermElabM do
-    let results ← parseEqualities eqs
+    let results ← parseEqualitiesInt eqs
     for result in results do
       match result with
       | ParseResult.success name lhs rhs =>

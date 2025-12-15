@@ -6,6 +6,8 @@ define_language! {
         Num(i32),
         "+" = Add([Id; 2]),
         "*" = Mul([Id; 2]),
+        "-" = Sub([Id; 2]),
+        "/" = Div([Id; 2]),
         "pow" = Pow([Id; 2]),
         "sin" = Sin([Id; 1]),
         "cos" = Cos([Id; 1]),

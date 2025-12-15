@@ -41,3 +41,6 @@ variable (x y : ℝ)
 #print_lhs_rhs_metavars sin_add
 
 #parse_equalities Real.sin_add
+#runEggTest ((cos x)^2 + (sin x)^2)
+#runEggTest x + 0
+#runEggTest (1 - (sin x)^2)
