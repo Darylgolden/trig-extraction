@@ -11,6 +11,11 @@ inductive PrintType where
 -- need to modify const so it takes symbol lang instead of string.
 -- want something like const (5) but also const (5 + 5)
 
+-- 2 options:
+-- const remains for numbers and consts pi
+-- consts become wrapper for symbol lang representing constants
+-- does e-graph analysis produce a proof?
+-- how should const be represented in e-graph lang?
 inductive SymbolLang where
   | Var (name : String) : SymbolLang
   | Add (left right : SymbolLang) : SymbolLang
@@ -24,7 +29,9 @@ inductive SymbolLang where
   | Cos (arg : SymbolLang) : SymbolLang
   | Tan (arg : SymbolLang) : SymbolLang
   | Sqrt (arg : SymbolLang) : SymbolLang
-  | Const (val : String) : SymbolLang
+  | Const (val : SymbolLang) : SymbolLang
+  | NumLit (lit : String) : SymbolLang
+  | Pi : SymbolLang
   | Other (stx : String) : SymbolLang
 deriving Repr, BEq
 
@@ -42,7 +49,9 @@ def ASTSize (lang : SymbolLang) : Nat :=
   | .Cos arg => 1 + ASTSize arg
   | .Tan arg => 1 + ASTSize arg
   | .Sqrt arg => 1 + ASTSize arg
-  | .Const _ => 1
+  | .Const val => ASTSize val -- might consider counting const as 1
+  | .NumLit _ => 1
+  | .Pi => 1
   | .Other _ => 1
 
 partial def TermCounter (t : Term) : Nat :=
@@ -89,7 +98,9 @@ partial def SymbolLangToString (lang : SymbolLang) : String :=
   | .Cos arg => s!"(cos {SymbolLangToString arg})"
   | .Tan arg => s!"(tan {SymbolLangToString arg})"
   | .Sqrt arg => s!"(sqrt {SymbolLangToString arg})"
-  | .Const c => c
+  | .Const c => s!"(const {SymbolLangToString c})"
+  | .NumLit lit => lit
+  | .Pi => "pi"
   | .Other o => o
 
 partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
@@ -144,13 +155,13 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
     return .Sqrt argAST
 
   | `(term| Real.pi) =>
-    return .Const "pi"
+    return .Const .Pi
 
   | `(term| $id:ident) =>
     return .Var id.getId.toString
 
   | `(term| $n:num) =>
-    return .Const (toString n.getNat)
+    return .Const (.NumLit (toString n.getNat))
 
   | `(term| ($e)) =>
     syntaxToSymbolLang e
@@ -166,17 +177,20 @@ partial def symbolLangToSyntax (lang : SymbolLang) : MetaM (TSyntax `term) := do
     let id := Lean.mkIdent x.toName
     return id
 
-  | .Const c =>
+  | .Const val =>
+    symbolLangToSyntax val
+
+  | .NumLit c =>
     let n? := c.toNat?
     match n? with
-    | some n =>
+    | some _ =>
       let numLit := Syntax.mkNumLit c
       return numLit
     | none =>
-      if c == "pi" then
-        `(term| Real.pi)
-      else
         throwError "Cannot convert constant {c} back to syntax"
+
+  | .Pi =>
+    `(term| Real.pi)
 
   | .Add left right =>
     let leftStx ← symbolLangToSyntax left
