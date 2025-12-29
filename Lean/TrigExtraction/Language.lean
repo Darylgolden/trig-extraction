@@ -8,6 +8,9 @@ inductive PrintType where
   | NormalExpr
   | Rule
 
+-- need to modify const so it takes symbol lang instead of string.
+-- want something like const (5) but also const (5 + 5)
+
 inductive SymbolLang where
   | Var (name : String) : SymbolLang
   | Add (left right : SymbolLang) : SymbolLang
@@ -19,6 +22,8 @@ inductive SymbolLang where
   | Pow (left right : SymbolLang) : SymbolLang
   | Sin (arg : SymbolLang) : SymbolLang
   | Cos (arg : SymbolLang) : SymbolLang
+  | Tan (arg : SymbolLang) : SymbolLang
+  | Sqrt (arg : SymbolLang) : SymbolLang
   | Const (val : String) : SymbolLang
   | Other (stx : String) : SymbolLang
 deriving Repr, BEq
@@ -35,6 +40,8 @@ def ASTSize (lang : SymbolLang) : Nat :=
   | .Pow base exponent => 1 + ASTSize base + ASTSize exponent
   | .Sin arg => 1 + ASTSize arg
   | .Cos arg => 1 + ASTSize arg
+  | .Tan arg => 1 + ASTSize arg
+  | .Sqrt arg => 1 + ASTSize arg
   | .Const _ => 1
   | .Other _ => 1
 
@@ -50,6 +57,8 @@ partial def TermCounter (t : Term) : Nat :=
   | `(term| sin $arg) => 1 + TermCounter arg
   | `(term| cos $arg) => 1 + TermCounter arg
   | `(term| tan $arg) => 1 + TermCounter arg
+  | `(term| Real.sqrt $arg) => 1 + TermCounter arg
+  | `(term| Real.pi) => 1
   | `(term| ($subterm)) => TermCounter subterm
   | _ => 1
 
@@ -78,6 +87,8 @@ partial def SymbolLangToString (lang : SymbolLang) : String :=
   | .Inv arg => s!"(inv {SymbolLangToString arg})"
   | .Sin arg => s!"(sin {SymbolLangToString arg})"
   | .Cos arg => s!"(cos {SymbolLangToString arg})"
+  | .Tan arg => s!"(tan {SymbolLangToString arg})"
+  | .Sqrt arg => s!"(sqrt {SymbolLangToString arg})"
   | .Const c => c
   | .Other o => o
 
@@ -124,6 +135,17 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
     let argAST ← syntaxToSymbolLang arg
     return .Cos argAST
 
+  | `(term| tan $arg) =>
+    let argAST ← syntaxToSymbolLang arg
+    return .Tan argAST
+
+  | `(term| Real.sqrt $arg) =>
+    let argAST ← syntaxToSymbolLang arg
+    return .Sqrt argAST
+
+  | `(term| Real.pi) =>
+    return .Const "pi"
+
   | `(term| $id:ident) =>
     return .Var id.getId.toString
 
@@ -136,6 +158,77 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
   | _ =>
     let prettyStx ← ppTerm ⟨stx⟩
     return .Other (prettyStx.pretty)
+
+
+partial def symbolLangToSyntax (lang : SymbolLang) : MetaM (TSyntax `term) := do
+  match lang with
+  | .Var x =>
+    let id := Lean.mkIdent x.toName
+    return id
+
+  | .Const c =>
+    let n? := c.toNat?
+    match n? with
+    | some n =>
+      let numLit := Syntax.mkNumLit c
+      return numLit
+    | none =>
+      if c == "pi" then
+        `(term| Real.pi)
+      else
+        throwError "Cannot convert constant {c} back to syntax"
+
+  | .Add left right =>
+    let leftStx ← symbolLangToSyntax left
+    let rightStx ← symbolLangToSyntax right
+    `(term| $leftStx + $rightStx)
+
+  | .Mul left right =>
+    let leftStx ← symbolLangToSyntax left
+    let rightStx ← symbolLangToSyntax right
+    `(term| $leftStx * $rightStx)
+
+  | .Sub left right =>
+    let leftStx ← symbolLangToSyntax left
+    let rightStx ← symbolLangToSyntax right
+    `(term| $leftStx - $rightStx)
+
+  | .Div left right =>
+    let leftStx ← symbolLangToSyntax left
+    let rightStx ← symbolLangToSyntax right
+    `(term| $leftStx / $rightStx)
+
+  | .Pow base exponent =>
+    let baseStx ← symbolLangToSyntax base
+    let exponentStx ← symbolLangToSyntax exponent
+    `(term| $baseStx ^ $exponentStx)
+
+  | .Neg arg =>
+    let argStx ← symbolLangToSyntax arg
+    `(term| -$argStx)
+
+  | .Inv arg =>
+    let argStx ← symbolLangToSyntax arg
+    `(term| $argStx⁻¹)
+
+  | .Sin arg =>
+    let argStx ← symbolLangToSyntax arg
+    `(term| Real.sin ($argStx))
+
+  | .Cos arg =>
+    let argStx ← symbolLangToSyntax arg
+    `(term| Real.cos ($argStx))
+
+  | .Tan arg =>
+    let argStx ← symbolLangToSyntax arg
+    `(term| Real.tan ($argStx))
+
+  | .Sqrt arg =>
+    let argStx ← symbolLangToSyntax arg
+    `(term| Real.sqrt ($argStx))
+
+  | .Other o =>
+    throwError "Cannot convert Other node back to syntax: {o}"
 
 def ExprToString (e : Expr) : MetaM String := do
   let stx' ← delab e

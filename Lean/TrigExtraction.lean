@@ -46,3 +46,4 @@ variable (x y : ℝ)
 #runEggTest (1 - (sin x)^2)
 #runEggTest sin ((1 + x) - x)^2 + (cos (1))^2
 #runEggTest (1 + x) - x
+#runEggTest (sin x) * (sin x) * (sin x) * (sin x)

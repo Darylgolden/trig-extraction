@@ -13,6 +13,7 @@ structure RewriteRuleTerms where
 --   [
 
 --   ]
+axiom pow_one_rule : ∀ (x : ℝ), x ^ 1 = x
 
 -- field axioms
 def baseRules : List Name :=
@@ -35,10 +36,53 @@ def baseRules : List Name :=
     -- ring
     ``Lean.Grind.Ring.neg_add_cancel,
     ``Lean.Grind.Ring.sub_eq_add_neg,
+    -- ``Lean.Grind.Ring.neg_zsmul,
     -- field needs to define inv
+    ``Lean.Grind.Field.inv_zero,
+    ``Lean.Grind.Field.mul_inv_cancel,
+    ``Lean.Grind.Field.zpow_zero,
+    ``Lean.Grind.Field.zpow_succ,
+    ``Lean.Grind.Field.zpow_neg,
+    ``pow_one_rule
 
   ]
 def trigRules : List Name :=
   [
     ``Real.cos_sq_add_sin_sq,
+    ``Real.tan_eq_sin_div_cos,
+    ``Real.sin_neg,
+    ``Real.cos_neg,
+    ``Real.sin_antiperiodic,
+    ``Real.cos_antiperiodic,
+    ``Real.tan_periodic,
+    ``Real.sin_periodic,
+    ``Real.cos_periodic,
+    ``Real.sin_zero,
+    ``Real.cos_zero,
+    ``Real.tan_zero,
+    ``Real.sin_pi_div_six,
+    ``Real.cos_pi_div_six,
+    ``Real.tan_pi_div_six,
+    ``Real.sin_pi_div_four,
+    ``Real.cos_pi_div_four,
+    ``Real.tan_pi_div_four,
+    ``Real.sin_pi_div_three,
+    ``Real.cos_pi_div_three,
+    ``Real.tan_pi_div_three,
+    ``Real.sin_pi_div_two,
+    ``Real.cos_pi_div_two,
+    ``Real.sin_sq_eq_half_sub,
+    ``Real.two_mul_sin_mul_cos,
+    ``Real.two_mul_cos_mul_cos,
+    ``Real.two_mul_sin_mul_sin,
+    ``Real.sin_sub_sin,
+    ``Real.cos_add_cos,
+    ``Real.cos_sub_cos,
+    ``Real.cos_add,
+    ``Real.sin_add,
+    ``Real.cos_sub,
+    ``Real.sin_sub,
+    ``Real.sin_two_mul,
+    ``Real.cos_two_mul,
+    ``Real.cos_two_mul',
   ] ++ baseRules
