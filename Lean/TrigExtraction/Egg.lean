@@ -10,6 +10,7 @@ structure EggResult where
   term    : String
   egraph? : Option EGraph
   explanation : String
+  log : String
 deriving Inhabited
 
 -- IMPORTANT: The C interface to egg depends on the order of these fields.
@@ -17,6 +18,10 @@ structure RewriteRule where
   name : String
   lhs  : String
   rhs  : String
+
+structure DirectionalRewriteRule where
+  name : String
+  rule : String
 
 @[extern "run_egg_c"]
 opaque runEgg (target : String) (rws : Array RewriteRule) : Lean.MetaM EggResult

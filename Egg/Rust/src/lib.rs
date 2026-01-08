@@ -1,4 +1,5 @@
 use egg::*;
+mod custom_schedulers;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::panic;
 
@@ -16,6 +17,7 @@ define_language! {
         "cos" = Cos([Id; 1]),
         "tan" = Tan([Id; 1]),
         "sqrt" = Sqrt([Id; 1]),
+        "const" = Const([Id; 1]),
         Symbol(Symbol),
     }
 }
@@ -70,39 +72,69 @@ pub struct EggResult {
     success: bool,
     term: *const c_char,
     egraph: Option<Box<EGraph<L, ()>>>,
-    explanation: *const c_char
+    explanation: *const c_char,
+    log: *const c_char
 }
 
-
-fn make_rules(rws: Vec<RewriteRule>) -> Result<Vec<Rewrite<L, ()>>, String> {
+// return pair of vec of rewrite rules and error messages instead?
+fn make_rules(rws: Vec<RewriteRule>) -> (Vec<egg::Rewrite<L, ()>>, Vec<String>){
     let mut rules = Vec::new();
+    let mut errors = Vec::new();
+    
     for r in &rws {
-        let lhs_pattern: Pattern<L> = r.lhs.parse()
-            .map_err(|e| format!("Failed to parse LHS '{}': {:?}", r.lhs, e))?;
-        let rhs_pattern: Pattern<L> = r.rhs.parse()
-            .map_err(|e| format!("Failed to parse RHS '{}': {:?}", r.rhs, e))?;
+        eprintln!("Parsing {}, {}", r.lhs.parse(), r.rhs.parse());
+        let lhs_pattern: Pattern<L> = match r.lhs.parse() {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!("Failed to parse LHS '{}': {:?}", r.lhs, e));
+                continue;
+            }
+        };
+        let rhs_pattern: Pattern<L> = match r.rhs.parse() {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!("Failed to parse RHS '{}': {:?}", r.rhs, e));
+                continue;
+            }
+        };
+        
         let name = r.name.clone();
         let name_lhs_to_rhs = name.clone() + "_lhs_to_rhs";
-        rules.push(Rewrite::new(
-            name_lhs_to_rhs.clone(),
+        let name_rhs_to_lhs = name.clone() + "_rhs_to_lhs";
+        match Rewrite::new(
+            name_lhs_to_rhs,
             lhs_pattern.clone(),
             rhs_pattern.clone()
-        ).map_err(|e| format!("Failed to create rewrite rule '{}': {:?}", name_lhs_to_rhs, e))?);
-        let name_rhs_to_lhs = name.clone() + "_rhs_to_lhs";
-        rules.push(Rewrite::new(
-            name_rhs_to_lhs.clone(),
+        ) {
+            Ok(rule) => rules.push(rule),
+            Err(err) => errors.push(err)
+        }
+        match Rewrite::new(
+            name_rhs_to_lhs,
             rhs_pattern,
             lhs_pattern
-        ).map_err(|e| format!("Failed to create rewrite rule '{}': {:?}", name_rhs_to_lhs, e))?);
+        ) {
+            Ok(rule) => rules.push(rule),
+            Err(err) => errors.push(err)
+        }
     }
-    Ok(rules)
+    
+    (rules, errors)
 }
 
 fn simplify_expr(target: String, rws: Vec<RewriteRule>) -> Result<EggResult, String> {
     let expr: RecExpr<L> = target.parse()
         .map_err(|e| format!("Failed to parse target expression '{}': {:?}", target, e))?;
-    let rewrites = make_rules(rws)?;
-    let mut runner = Runner::default().with_explanations_enabled().with_expr(&expr).run(&rewrites);
+    let (rewrites, errors) = make_rules(rws);
+    let mut runner = Runner::default()
+                                        .with_iter_limit(10)
+                                        .with_node_limit(10000)
+                                        .with_scheduler(BackoffScheduler::default().with_initial_match_limit(5))
+                                        .with_explanations_enabled()
+                                        .with_expr(&expr)
+                                        .with_explanation_length_optimization()
+                                        .run(&rewrites);
+
     let extractor = Extractor::new(&runner.egraph, AstSize);
     let (_cost, best) = extractor.find_best(runner.roots[0]);
     let expl = runner.explain_equivalence(&expr, &best).get_flat_string();
@@ -111,11 +143,13 @@ fn simplify_expr(target: String, rws: Vec<RewriteRule>) -> Result<EggResult, Str
         success: true,
         term: string_to_c_str(best.to_string()),
         egraph: Some(Box::new(egraph)),
-        explanation: string_to_c_str(expl)
+        explanation: string_to_c_str(expl),
+        log: string_to_c_str(errors.join("\n"))
     })
 }
 
 
+// need to modify egg result to accept log string
 #[no_mangle]
 pub extern "C" fn run_egg(target: *const c_char, rws: CRewriteRuleArray, _env: *const c_void) -> EggResult {
     let result = panic::catch_unwind(|| {
@@ -131,7 +165,8 @@ pub extern "C" fn run_egg(target: *const c_char, rws: CRewriteRuleArray, _env: *
                 success: false,
                 term: string_to_c_str(String::new()),
                 egraph: None,
-                explanation: string_to_c_str(format!("Error: {}", error_msg))
+                explanation: string_to_c_str(String::new()),
+                log: string_to_c_str(error_msg)
             }
         }
         Err(panic_info) => {
@@ -146,7 +181,8 @@ pub extern "C" fn run_egg(target: *const c_char, rws: CRewriteRuleArray, _env: *
                 success: false,
                 term: string_to_c_str(String::new()),
                 egraph: None,
-                explanation: string_to_c_str(panic_msg)
+                explanation: string_to_c_str(String::new()),
+                log: string_to_c_str(panic_msg)
             }
         }
     }
@@ -168,7 +204,8 @@ pub unsafe extern "C" fn query_egraph(egraph: *mut EGraph<L, ()>, query: *const 
                 success: true,
                 term: query,
                 egraph: None,
-                explanation: string_to_c_str("".to_string())
+                explanation: string_to_c_str(String::new()),
+                log: string_to_c_str(String::new())
             }
         }
         Ok(Err(error_msg)) => {
@@ -176,7 +213,8 @@ pub unsafe extern "C" fn query_egraph(egraph: *mut EGraph<L, ()>, query: *const 
                 success: false,
                 term: string_to_c_str(String::new()),
                 egraph: None,
-                explanation: string_to_c_str(format!("Error: {}", error_msg))
+                explanation: string_to_c_str(format!("Error: {}", error_msg)),
+                log: string_to_c_str(String::new())
             }
         }
         Err(panic_info) => {
@@ -191,7 +229,8 @@ pub unsafe extern "C" fn query_egraph(egraph: *mut EGraph<L, ()>, query: *const 
                 success: false,
                 term: string_to_c_str(String::new()),
                 egraph: None,
-                explanation: string_to_c_str(panic_msg)
+                explanation: string_to_c_str(String::new()),
+                log: string_to_c_str(panic_msg)
             }
         }
     }

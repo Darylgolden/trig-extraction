@@ -49,7 +49,7 @@ def ASTSize (lang : SymbolLang) : Nat :=
   | .Cos arg => 1 + ASTSize arg
   | .Tan arg => 1 + ASTSize arg
   | .Sqrt arg => 1 + ASTSize arg
-  | .Const val => ASTSize val -- might consider counting const as 1
+  | .Const val => 1 + ASTSize val -- might consider counting const as 1
   | .NumLit _ => 1
   | .Pi => 1
   | .Other _ => 1
@@ -158,7 +158,11 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
     return .Const .Pi
 
   | `(term| $id:ident) =>
-    return .Var id.getId.toString
+    let name := id.getId
+    if name == `π || name == `Real.pi then
+      return .Const .Pi
+    else
+      return .Var name.toString
 
   | `(term| $n:num) =>
     return .Const (.NumLit (toString n.getNat))
@@ -166,9 +170,15 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
   | `(term| ($e)) =>
     syntaxToSymbolLang e
 
+  -- | `(Real.termπ) =>
+  --   return .Const .Pi
+
   | _ =>
-    let prettyStx ← ppTerm ⟨stx⟩
-    return .Other (prettyStx.pretty)
+    if stx.isOfKind `Real.termπ then
+      return .Const .Pi
+    else
+      let prettyStx ← ppTerm ⟨stx⟩
+      return .Other (prettyStx.pretty)
 
 
 partial def symbolLangToSyntax (lang : SymbolLang) : MetaM (TSyntax `term) := do
@@ -327,19 +337,19 @@ elab "toEggStringRule" t:term : term => do
   return mkStrLit str
 
 
-def rwRules : Array RewriteRule :=
-  #[⟨"test", "(+ 1 1)", "2"⟩,
-    ⟨"test2", "(+ (pow (sin ?x) 2) (pow (cos ?x) 2))", "1"⟩
-    ]
+-- def rwRules : Array RewriteRule :=
+--   #[⟨"test", "(+ 1 1)", "2"⟩,
+--     ⟨"test2", "(+ (pow (sin ?x) 2) (pow (cos ?x) 2))", "1"⟩
+--     ]
 
-elab "#runEgg" t:term : command => do
-  Command.runTermElabM fun _ => do
-    let e ← elabTerm t none
-    let stx' ← delab e
-    let l ← syntaxToSymbolLang stx'
-    let str := SymbolLangToString l
-    let result ← runEgg str rwRules
-    logInfo m!"{result.term}"
+-- elab "#runEgg" t:term : command => do
+--   Command.runTermElabM fun _ => do
+--     let e ← elabTerm t none
+--     let stx' ← delab e
+--     let l ← syntaxToSymbolLang stx'
+--     let str := SymbolLangToString l
+--     let result ← runEgg str rwRules
+--     logInfo m!"{result.term}"
 
 elab "#runEggTest" t:term : command => do
   Command.runTermElabM fun _ => do
@@ -354,6 +364,23 @@ elab "#runEggTest" t:term : command => do
     let result ← runEgg str rw_rules
     logInfo m!"{result.term}"
     logInfo m!"Explanation: \n {result.explanation}"
+
+elab "#printASTSize" t:term : command => do
+  Command.runTermElabM fun _ => do
+    let e ← elabTerm t none
+    logInfo m!"Expr: {e}"
+    let stx' ← delab e
+    logInfo m!"Delaborated Syntax: {stx'}"
+    logInfo m!"Syntax repr: {repr stx'}"
+    -- Check if it matches patterns
+    match stx' with
+    | `(term| Real.pi) => logInfo m!"Matched Real.pi pattern"
+    | `(term| $id:ident) => logInfo m!"Matched ident pattern: {id.getId}"
+    | _ => logInfo m!"No pattern matched"
+    let l ← syntaxToSymbolLang stx'
+    let size := ASTSize l
+    logInfo m!"AST: {repr l}"
+    logInfo m!"AST Size: {size}"
 
 elab "#print_lhs_rhs " id:ident : command => do
   let name ← resolveGlobalConstNoOverload id
@@ -387,3 +414,6 @@ elab "#parse_equalities " ids:ident+ : command => do
         logInfo m!"[OK] {name}: LHS: {lhs} RHS: {rhs}"
       | ParseResult.failure name e reason =>
         logWarning m!"[WARN] {name} failed to parse; expr is {e}, reason: {reason}"
+
+
+-- todo: figure out why pi isn't parsed properly

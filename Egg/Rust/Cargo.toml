@@ -8,4 +8,6 @@ crate-type = ["staticlib"]
 
 [dependencies]
 egg = "0.10"
+itertools = "0.14.0"
 libc = "0.2"
+log = "0.4.29"

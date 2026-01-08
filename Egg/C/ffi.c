@@ -69,16 +69,19 @@ typedef struct egg_result {
     char* term;
     egraph graph;
     char* explanation;
+    char* log;
 } egg_result;
 
 lean_obj_res egg_result_to_lean(egg_result result) {
     lean_object* term  = lean_mk_string(result.term);
     lean_object* graph = egraph_to_lean(result.graph);
     lean_object* explanation = lean_mk_string(result.explanation);
+    lean_object* log = lean_mk_string(result.log);
 
-    lean_object* lean_result = lean_alloc_ctor(0, 3, sizeof(uint8_t));
+    lean_object* lean_result = lean_alloc_ctor(0, 4, sizeof(uint8_t));
     lean_ctor_set(lean_result, 0, term);
     lean_ctor_set(lean_result, 2, explanation);
+    lean_ctor_set(lean_result, 3, log);
 
     unsigned scalar_base_offset = lean_ctor_num_objs(lean_result) * sizeof(void*);
     lean_ctor_set_uint8(lean_result, scalar_base_offset + 0, result.success);

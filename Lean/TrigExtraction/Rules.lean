@@ -33,13 +33,13 @@ def baseRules : List Name :=
     ``Lean.Grind.Semiring.pow_succ,
     -- commsemiring
     ``Lean.Grind.CommSemiring.mul_comm,
-    -- ring
+    -- -- ring
     ``Lean.Grind.Ring.neg_add_cancel,
     ``Lean.Grind.Ring.sub_eq_add_neg,
-    -- ``Lean.Grind.Ring.neg_zsmul,
+    ``Lean.Grind.Ring.neg_zsmul,
     -- field needs to define inv
-    ``Lean.Grind.Field.inv_zero,
-    ``Lean.Grind.Field.mul_inv_cancel,
+    -- ``Lean.Grind.Field.inv_zero,
+    -- ``Lean.Grind.Field.mul_inv_cancel, causes bugs
     ``Lean.Grind.Field.zpow_zero,
     ``Lean.Grind.Field.zpow_succ,
     ``Lean.Grind.Field.zpow_neg,

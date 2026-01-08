@@ -31,10 +31,7 @@ variable (x y : ℝ)
 -- #check getASTSize (2.0 * sin x)
 -- -- 4
 -- #check getASTSize ((1 + 2) * 3)
--- 5
-#check runEgg (toEggStringExpr (1 + 1)) rwRules
-#runEgg (1)
-#runEgg ((sin x)^2 + (cos x)^2)
+
 #check Real.tan_mul_cos
 
 #check sin_add
@@ -43,7 +40,11 @@ variable (x y : ℝ)
 #parse_equalities Real.sin_add
 #runEggTest ((cos x)^2 + (sin x)^2)
 #runEggTest x + 0
+#runEggTest x + 1
 #runEggTest (1 - (sin x)^2)
 #runEggTest sin ((1 + x) - x)^2 + (cos (1))^2
 #runEggTest (1 + x) - x
 #runEggTest (sin x) * (sin x) * (sin x) * (sin x)
+-- #runEggTest Real.pi
+-- #printASTSize Real.pi
+-- #printASTSize 1
