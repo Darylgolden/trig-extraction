@@ -26,6 +26,9 @@ structure DirectionalRewriteRule where
 @[extern "run_egg_c"]
 opaque runEgg (target : String) (rws : Array RewriteRule) : Lean.MetaM EggResult
 
+@[extern "run_egg_directional_c"]
+opaque runEggDirectional (target : String) (directedRws : Array DirectionalRewriteRule) : Lean.MetaM EggResult
+
 def runEggSafe (target : String) (rws : Array RewriteRule) : Lean.MetaM (Except String EggResult) := do
   let result ← runEgg target rws
   if result.success then
@@ -42,3 +45,7 @@ def EGraph.querySafe (egraph : EGraph) (query : String) : Except String EggResul
     Except.ok result
   else
     Except.error result.explanation
+
+@[export transfer_string]
+def sayHi (name : String) : String :=
+  s!"Hello {name}!"

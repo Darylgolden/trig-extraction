@@ -16,6 +16,11 @@ typedef struct rw_rule {
     const char* rhs;
 } rw_rule;
 
+typedef struct directed_rw_rule {
+    const char* name;
+    const char* rule;
+} directed_rw_rule;
+
 rw_rule rw_rule_from_lean_obj(lean_obj_arg rw) {
     return (rw_rule) { 
         .name = lean_string_cstr(lean_ctor_get(rw, 0)),
@@ -24,10 +29,22 @@ rw_rule rw_rule_from_lean_obj(lean_obj_arg rw) {
     };
 }
 
+directed_rw_rule directed_rw_rule_from_lean_obj(lean_obj_arg directed_rw) {
+    return (directed_rw_rule) {
+        .name = lean_string_cstr(lean_ctor_get(directed_rw, 0)),
+        .rule = lean_string_cstr(lean_ctor_get(directed_rw, 1))
+    };
+}
+
 typedef struct rw_rule_array {
     rw_rule* ptr;
     size_t   len;
 } rw_rule_array;
+
+typedef struct directed_rw_rule_array {
+    directed_rw_rule* ptr;
+    size_t            len;
+} directed_rw_rule_array;
 
 rw_rule_array rw_rule_array_from_lean_obj(lean_obj_arg rws) {
     lean_object** rws_c_ptr = lean_array_cptr(rws);
@@ -37,6 +54,16 @@ rw_rule_array rw_rule_array_from_lean_obj(lean_obj_arg rws) {
         c_rws[idx] = rw_rule_from_lean_obj(rws_c_ptr[idx]);
     }
     return (rw_rule_array) { .ptr = c_rws, .len = rws_count };
+}
+
+directed_rw_rule_array directed_rw_rule_array_from_lean_obj(lean_obj_arg directed_rws) {
+    lean_object** directed_rws_c_ptr = lean_array_cptr(directed_rws);
+    size_t rws_count = lean_array_size(directed_rws);
+    directed_rw_rule* c_directed_rws = malloc(rws_count * sizeof(directed_rw_rule));
+    for (int idx = 0; idx < rws_count; idx++) {
+        c_directed_rws[idx] = directed_rw_rule_from_lean_obj(directed_rws_c_ptr[idx]);
+    }
+    return (directed_rw_rule_array) { .ptr = c_directed_rws, .len = rws_count };
 }
 
 typedef void* egraph;
@@ -100,6 +127,8 @@ lean_obj_res egg_result_to_lean(egg_result result) {
 
 extern egg_result run_egg(const char* target, rw_rule_array rws, void* e);
 
+extern egg_result run_egg_directional(const char* target, directed_rw_rule_array directed_rws, void* e);
+
 lean_obj_res run_egg_c(lean_obj_arg target, lean_obj_arg rw_rules, lean_obj_arg x1, lean_obj_arg x2, lean_obj_arg x3, lean_obj_arg x4, lean_obj_arg x5) {
     env e = { .x1 = x1, .x2 = x2, .x3 = x3, .x4 = x4, .x5 = x5 };
     const char* tgt = lean_string_cstr(target);
@@ -118,6 +147,24 @@ lean_obj_res run_egg_c(lean_obj_arg target, lean_obj_arg rw_rules, lean_obj_arg 
     return metam_state;
 }
 
+lean_obj_res run_egg_directional_c(lean_obj_arg target, lean_obj_arg directed_rw_rules, lean_obj_arg x1, lean_obj_arg x2, lean_obj_arg x3, lean_obj_arg x4, lean_obj_arg x5) {
+    env e = { .x1 = x1, .x2 = x2, .x3 = x3, .x4 = x4, .x5 = x5 };
+    const char* tgt = lean_string_cstr(target);
+    directed_rw_rule_array directed_rws = directed_rw_rule_array_from_lean_obj(directed_rw_rules);
+
+    egg_result res = run_egg_directional(tgt, directed_rws, &e);
+
+    lean_obj_res result = egg_result_to_lean(res);
+    lean_object* metam_state = lean_alloc_ctor(0, 2, 0);
+    lean_ctor_set(metam_state, 0, result);
+    lean_ctor_set(metam_state, 1, x5);
+
+    // TODO: Is it safe to free this?
+    free(directed_rws.ptr);
+
+    return metam_state;
+}   
+
 extern egg_result query_egraph(egraph graph, const char* query);
 
 lean_obj_res query_egraph_c(b_lean_obj_arg g, lean_obj_arg q) {
@@ -125,4 +172,14 @@ lean_obj_res query_egraph_c(b_lean_obj_arg g, lean_obj_arg q) {
     egraph graph = to_egraph(g);
     egg_result result = query_egraph(graph, query);
     return egg_result_to_lean(result);    
+}
+
+extern lean_object* transfer_string(const char* name);
+
+const char *rs_transfer_string(const char* name) {
+    lean_object* s = transfer_string(name);
+    size_t len = lean_string_size(s);
+    char* str = (char*)malloc(len + 1);
+    strcpy(str, lean_string_cstr(s));
+    return str;
 }

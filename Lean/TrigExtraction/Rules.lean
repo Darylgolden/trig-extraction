@@ -13,7 +13,13 @@ structure RewriteRuleTerms where
 --   [
 
 --   ]
+inductive Direction where
+  | left_to_right
+  | right_to_left
+  | both
+
 axiom pow_one_rule : ∀ (x : ℝ), x ^ 1 = x
+axiom zpow_succ : ∀ (x : ℝ) (y : ℤ), x ^ (y + 1) = x ^ y * x
 
 -- field axioms
 def baseRules : List Name :=
@@ -46,6 +52,28 @@ def baseRules : List Name :=
     ``pow_one_rule
 
   ]
+
+def baseRulesDirectional :=
+  [
+    (``Lean.Grind.Semiring.add_zero, Direction.both),
+    (``Lean.Grind.Semiring.add_comm, Direction.left_to_right), -- once is probably enough
+    (``Lean.Grind.Semiring.add_assoc, Direction.both),
+    (``Lean.Grind.Semiring.mul_assoc, Direction.both),
+    (``Lean.Grind.Semiring.mul_one, Direction.left_to_right),
+    (``Lean.Grind.Semiring.one_mul, Direction.left_to_right),
+    (``Lean.Grind.Semiring.left_distrib, Direction.left_to_right),
+    (``Lean.Grind.Semiring.zero_mul, Direction.left_to_right),
+    (``Lean.Grind.Semiring.mul_zero, Direction.left_to_right),
+    (``Lean.Grind.Semiring.pow_zero, Direction.left_to_right),
+    (``Lean.Grind.Semiring.pow_succ, Direction.both),
+    (``Lean.Grind.Ring.neg_add_cancel, Direction.both),
+    (``Lean.Grind.Ring.sub_eq_add_neg, Direction.both),
+    (``Lean.Grind.Field.zpow_zero, Direction.left_to_right),
+    (``zpow_succ, Direction.both),
+    (``Lean.Grind.Field.zpow_neg, Direction.both),
+    (``pow_one_rule, Direction.both)
+  ]
+
 def trigRules : List Name :=
   [
     ``Real.cos_sq_add_sin_sq,
@@ -86,3 +114,49 @@ def trigRules : List Name :=
     ``Real.cos_two_mul,
     ``Real.cos_two_mul',
   ] ++ baseRules
+
+def trigRulesDirectional :=
+  [
+    (``Real.cos_sq_add_sin_sq, Direction.left_to_right),
+    (``Real.tan_eq_sin_div_cos, Direction.both),
+    (``Real.sin_neg, Direction.both),
+    (``Real.cos_neg, Direction.both),
+    (``Real.sin_antiperiodic, Direction.both),
+    (``Real.cos_antiperiodic, Direction.both),
+    (``Real.tan_periodic, Direction.both),
+    (``Real.sin_periodic, Direction.both),
+    (``Real.cos_periodic, Direction.both),
+    (``Real.sin_zero, Direction.left_to_right),
+    (``Real.cos_zero, Direction.left_to_right),
+    (``Real.tan_zero, Direction.left_to_right),
+    (``Real.sin_pi_div_six, Direction.left_to_right),
+    (``Real.cos_pi_div_six, Direction.left_to_right),
+    (``Real.tan_pi_div_six, Direction.left_to_right),
+    (``Real.sin_pi_div_four, Direction.left_to_right),
+    (``Real.cos_pi_div_four, Direction.left_to_right),
+    (``Real.tan_pi_div_four, Direction.left_to_right),
+    (``Real.sin_pi_div_three, Direction.left_to_right),
+    (``Real.cos_pi_div_three, Direction.left_to_right),
+    (``Real.tan_pi_div_three, Direction.left_to_right),
+    (``Real.sin_pi_div_two, Direction.left_to_right),
+    (``Real.cos_pi_div_two, Direction.left_to_right),
+    (``Real.sin_sq_eq_half_sub, Direction.both),
+    (``Real.two_mul_sin_mul_cos, Direction.both),
+    (``Real.two_mul_cos_mul_cos, Direction.both),
+    (``Real.two_mul_sin_mul_sin, Direction.both),
+    (``Real.sin_sub_sin, Direction.both),
+    (``Real.cos_add_cos, Direction.both),
+    (``Real.cos_sub_cos, Direction.both),
+    (``Real.cos_add, Direction.both),
+    (``Real.sin_add, Direction.both),
+    (``Real.cos_sub, Direction.both),
+    (``Real.sin_sub, Direction.both),
+    (``Real.sin_two_mul, Direction.both),
+    (``Real.cos_two_mul, Direction.both),
+    (``Real.cos_two_mul', Direction.both)
+  ] ++ baseRulesDirectional
+
+def testDirectionalRule : List (Name × Direction) :=
+  [
+    (``Lean.Grind.Semiring.add_zero, Direction.both)
+  ]

@@ -264,6 +264,10 @@ inductive ParseResult where
   | success (name : Name) (lhs rhs : Expr)
   | failure (name : Name) (e : Expr) (reason : String)
 
+inductive DirectedParseResult where
+  | success (name : Name) (lhs rhs : Expr) (dir : Direction)
+  | failure (name : Name) (e : Expr) (reason : String)
+
 def parseEqualityExpr (name : Name) (e : Expr) : MetaM (ParseResult) := do
   let (_, _, conclusion) ← forallMetaTelescope e
   match conclusion.eq? with
@@ -291,6 +295,35 @@ def parseEqualities (eqs : List Name) : MetaM (Array RewriteRule) := do
     | ParseResult.failure _ _ _ => pure ()
   let successfulEqsArray := successfulEqsList.toArray
   return successfulEqsArray
+
+def parseDirectionalEqualitiesInt (directedEqs : (List (Name × Direction))) : MetaM (List DirectedParseResult) := do
+  directedEqs.mapM fun directedEq =>
+  do
+    let (name, direction) := directedEq
+    let result ← (parseEquality name)
+    match result with
+    | ParseResult.success name lhs rhs =>
+      return DirectedParseResult.success name lhs rhs direction
+    | ParseResult.failure name e reason =>
+      return DirectedParseResult.failure name e reason
+
+
+def parseDirectionalEqualities (directedEqs : List (Name × Direction)) : MetaM (Array DirectionalRewriteRule) := do
+  let parsedDirectionalEqsList ← (parseDirectionalEqualitiesInt directedEqs)
+  let mut successfulDirectedEqsList : List DirectionalRewriteRule := []
+  for m in parsedDirectionalEqsList do
+    match m with
+    | DirectedParseResult.success name lhs rhs dir =>
+        let lhsStr ← ExprToString lhs
+        let rhsStr ← ExprToString rhs
+        let s := match dir with
+        | Direction.left_to_right => lhsStr ++ " => " ++ rhsStr
+        | Direction.right_to_left => rhsStr ++ " => " ++ lhsStr
+        | Direction.both => lhsStr ++ " <=> " ++ rhsStr
+        successfulDirectedEqsList := successfulDirectedEqsList ++ [⟨name.toString, s⟩]
+    | DirectedParseResult.failure _ _ _ => pure ()
+  let successfulDirectedEqsArray := successfulDirectedEqsList.toArray
+  return successfulDirectedEqsArray
 
 
 elab "termMatch" t:term : term => do
@@ -362,6 +395,18 @@ elab "#runEggTest" t:term : command => do
     for rule in rw_rules do
       logInfo m!"Rule: {rule.name}: {rule.lhs} => {rule.rhs}"
     let result ← runEgg str rw_rules
+    logInfo m!"{result.term}"
+    logInfo m!"Explanation: \n {result.explanation}"
+
+elab "#runEggTestDirectional" t:term : command => do
+  Command.runTermElabM fun _ => do
+    let e ← elabTerm t none
+    let stx' ← delab e
+    let l ← syntaxToSymbolLang stx'
+    let str := SymbolLangToString l
+    logInfo m!"Target parsed as {str}"
+    let directed_rw_rules ← parseDirectionalEqualities trigRulesDirectional
+    let result ← runEggDirectional str directed_rw_rules
     logInfo m!"{result.term}"
     logInfo m!"Explanation: \n {result.explanation}"
 
