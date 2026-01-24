@@ -1,6 +1,7 @@
 #include <lean/lean.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct env {
     void* x1;
@@ -174,12 +175,14 @@ lean_obj_res query_egraph_c(b_lean_obj_arg g, lean_obj_arg q) {
     return egg_result_to_lean(result);    
 }
 
-extern lean_object* transfer_string(const char* name);
+extern lean_object* transfer_string(lean_object* name);
 
 const char *rs_transfer_string(const char* name) {
-    lean_object* s = transfer_string(name);
+    lean_object* lean_name = lean_mk_string(name);
+    lean_object* s = transfer_string(lean_name);
     size_t len = lean_string_size(s);
     char* str = (char*)malloc(len + 1);
     strcpy(str, lean_string_cstr(s));
+    lean_dec(s);
     return str;
 }

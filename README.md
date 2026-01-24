@@ -14,3 +14,7 @@ See [here](https://proofassistants.stackexchange.com/questions/5095/using-precom
 ```
 lake clean && lake exec cache get && lake build ; patchelf --set-rpath $HOME/.elan/toolchains/leanprover--lean4---v4.25.0-rc2/lib/lean .lake/packages/mathlib/.lake/build/lib/libMathlib.so && patchelf --set-rpath $HOME/.elan/toolchains/leanprover--lean4---v4.25.0-rc2/lib/lean .lake/packages/importGraph/.lake/build/lib/libImportGraph.so && lake build
 ```
+Without cleaning:
+```
+lake build ; patchelf --set-rpath $HOME/.elan/toolchains/leanprover--lean4---v4.25.0-rc2/lib/lean .lake/packages/mathlib/.lake/build/lib/libMathlib.so && patchelf --set-rpath $HOME/.elan/toolchains/leanprover--lean4---v4.25.0-rc2/lib/lean .lake/packages/importGraph/.lake/build/lib/libImportGraph.so && lake build
+```
