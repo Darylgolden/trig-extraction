@@ -1,4 +1,6 @@
 import Lean
+import Mathlib
+import Mathlib.Tactic.NormNum.Core
 
 private opaque EGraph.Pointed : NonemptyType.{0}
 
@@ -49,3 +51,5 @@ def EGraph.querySafe (egraph : EGraph) (query : String) : Except String EggResul
 @[export transfer_string]
 def sayHi (name : String) : String :=
   s!"Hello {name}!"
+
+-- example : 2 + 2 = 4 := by norm_num

@@ -160,3 +160,5 @@ def testDirectionalRule : List (Name × Direction) :=
   [
     (``Lean.Grind.Semiring.add_zero, Direction.both)
   ]
+
+-- def runNormNum (s : String) : MetaM String := do

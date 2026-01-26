@@ -71,6 +71,7 @@ partial def TermCounter (t : Term) : Nat :=
   | `(term| ($subterm)) => TermCounter subterm
   | _ => 1
 
+
 -- partial def LangToString (lang : SymbolLang) (typ : PrintType) : String :=
 --   match lang with
 --   | .Var x => match typ with
@@ -103,6 +104,98 @@ partial def SymbolLangToString (lang : SymbolLang) : String :=
   | .Pi => "pi"
   | .Other o => o
 
+-- partial def eggSyntaxToSymbolLang (stx : Syntax) : SymbolLang :=
+--   match stx with
+--   | `(term| $left + $right) =>
+
+
+
+
+declare_syntax_cat egg_expr
+syntax ident : egg_expr
+syntax num : egg_expr
+syntax str : egg_expr
+syntax "(+ " egg_expr egg_expr ")" : egg_expr
+syntax "(* " egg_expr egg_expr ")" : egg_expr
+syntax "(- " egg_expr egg_expr ")" : egg_expr
+syntax "(/ " egg_expr egg_expr ")" : egg_expr
+syntax "(pow " egg_expr egg_expr ")" : egg_expr
+syntax "(sin " egg_expr ")" : egg_expr
+syntax "(cos " egg_expr ")" : egg_expr
+syntax "(tan " egg_expr ")" : egg_expr
+syntax "(sqrt " egg_expr ")" : egg_expr
+syntax "(neg " egg_expr ")" : egg_expr
+syntax "(inv " egg_expr ")" : egg_expr
+syntax "(const " egg_expr ")" : egg_expr
+syntax "pi" : egg_expr
+
+partial def eggSyntaxToSymbolLang (stx : Syntax) : Except String SymbolLang :=
+  match stx with
+  | `(egg_expr| $id:ident) =>
+    .ok (.Var id.getId.toString)
+
+  | `(egg_expr| $n:num) =>
+    .ok (.NumLit (toString n.getNat))
+
+  | `(egg_expr| pi) =>
+    .ok .Pi
+
+  | `(egg_expr| (+ $left $right)) => do
+    let leftAST ← eggSyntaxToSymbolLang left
+    let rightAST ← eggSyntaxToSymbolLang right
+    .ok (.Add leftAST rightAST)
+
+  | `(egg_expr| (* $left $right)) => do
+    let leftAST ← eggSyntaxToSymbolLang left
+    let rightAST ← eggSyntaxToSymbolLang right
+    .ok (.Mul leftAST rightAST)
+
+  | `(egg_expr| (- $left $right)) => do
+    let leftAST ← eggSyntaxToSymbolLang left
+    let rightAST ← eggSyntaxToSymbolLang right
+    .ok (.Sub leftAST rightAST)
+
+  | `(egg_expr| (/ $left $right)) => do
+    let leftAST ← eggSyntaxToSymbolLang left
+    let rightAST ← eggSyntaxToSymbolLang right
+    .ok (.Div leftAST rightAST)
+
+  | `(egg_expr| (pow $base $exp)) => do
+    let baseAST ← eggSyntaxToSymbolLang base
+    let expAST ← eggSyntaxToSymbolLang exp
+    .ok (.Pow baseAST expAST)
+
+  | `(egg_expr| (neg $arg)) => do
+    let argAST ← eggSyntaxToSymbolLang arg
+    .ok (.Neg argAST)
+
+  | `(egg_expr| (inv $arg)) => do
+    let argAST ← eggSyntaxToSymbolLang arg
+    .ok (.Inv argAST)
+
+  | `(egg_expr| (sin $arg)) => do
+    let argAST ← eggSyntaxToSymbolLang arg
+    .ok (.Sin argAST)
+
+  | `(egg_expr| (cos $arg)) => do
+    let argAST ← eggSyntaxToSymbolLang arg
+    .ok (.Cos argAST)
+
+  | `(egg_expr| (tan $arg)) => do
+    let argAST ← eggSyntaxToSymbolLang arg
+    .ok (.Tan argAST)
+
+  | `(egg_expr| (sqrt $arg)) => do
+    let argAST ← eggSyntaxToSymbolLang arg
+    .ok (.Sqrt argAST)
+
+  | `(egg_expr| (const $val)) => do
+    let valAST ← eggSyntaxToSymbolLang val
+    .ok (.Const valAST)
+
+  | _ => .error s!"Unrecognized egg_expr syntax: {stx}"
+
+-- TODO: convert to not use metaM
 partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
   match stx with
   | `(term| $left + $right) =>
@@ -181,6 +274,7 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
       return .Other (prettyStx.pretty)
 
 
+-- TODO: convert to not use metaM
 partial def symbolLangToSyntax (lang : SymbolLang) : MetaM (TSyntax `term) := do
   match lang with
   | .Var x =>
@@ -259,6 +353,15 @@ def ExprToString (e : Expr) : MetaM String := do
   let l ← syntaxToSymbolLang stx'
   let s := SymbolLangToString l
   return s
+
+-- def EggStringToExpr (s : String) := MetaM String := do
+def StringToStx (s : String) : MetaM Syntax := do
+  let env ← getEnv
+  match Parser.runParserCategory env `term s "<input>" with
+  | .ok stx => return stx
+  | .error msg => throwError s!"{msg}"
+
+
 
 inductive ParseResult where
   | success (name : Name) (lhs rhs : Expr)
