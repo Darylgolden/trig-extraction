@@ -274,6 +274,9 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
       return .Other (prettyStx.pretty)
 
 
+
+
+
 -- TODO: convert to not use metaM
 partial def symbolLangToSyntax (lang : SymbolLang) : MetaM (TSyntax `term) := do
   match lang with
@@ -348,19 +351,28 @@ partial def symbolLangToSyntax (lang : SymbolLang) : MetaM (TSyntax `term) := do
   | .Other o =>
     throwError "Cannot convert Other node back to syntax: {o}"
 
+partial def symbolLangToExpr (lang : SymbolLang) : TermElabM Expr := do
+  let stx ← symbolLangToSyntax lang
+  let e ← elabTerm stx none
+  return e
+
 def ExprToString (e : Expr) : MetaM String := do
   let stx' ← delab e
   let l ← syntaxToSymbolLang stx'
   let s := SymbolLangToString l
   return s
 
--- def EggStringToExpr (s : String) := MetaM String := do
-def StringToStx (s : String) : MetaM Syntax := do
+def eggStringToStx (s : String) : MetaM Syntax := do
   let env ← getEnv
-  match Parser.runParserCategory env `term s "<input>" with
+  match Parser.runParserCategory env `egg_expr s "<input>" with
   | .ok stx => return stx
   | .error msg => throwError s!"{msg}"
 
+def eggStringToExpr (s : String) : TermElabM Expr := do
+  let eggStx ← eggStringToStx s
+  let lang ← syntaxToSymbolLang eggStx
+  let e ← symbolLangToExpr lang
+  return e
 
 
 inductive ParseResult where
