@@ -2,6 +2,7 @@ use egg::*;
 // mod custom_schedulers;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::panic;
+use std::time::Duration;
 
 define_language! { 
     pub enum L { 
@@ -281,6 +282,7 @@ fn simplify_expr_directional(target: String, directed_rws: Vec<DirectedRewriteRu
                                                         .with_explanations_enabled()
                                                         .with_expr(&expr)
                                                         .with_explanation_length_optimization()
+                                                        .with_time_limit(Duration::new(1, 0))
                                                         .run(&rewrites);
     let extractor = Extractor::new(&runner.egraph, AstSize);
     let (_cost, best) = extractor.find_best(runner.roots[0]);
