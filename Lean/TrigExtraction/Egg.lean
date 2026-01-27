@@ -1,6 +1,4 @@
 import Lean
-import Mathlib
-import Mathlib.Tactic.NormNum.Core
 
 private opaque EGraph.Pointed : NonemptyType.{0}
 

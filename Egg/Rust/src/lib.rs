@@ -346,10 +346,6 @@ pub extern "C" fn run_egg_directional(target: *const c_char, directed_rws: CDire
         let directed_rws = directed_rws.to_vec();
         simplify_expr_directional(target, directed_rws)
     });
-    unsafe {
-        let test = c_str_to_string(rs_transfer_string(string_to_c_str(String::from("meow"))));
-        println!("{test}");
-    }
     match result {
         Ok(Ok(egg_result)) => egg_result,
         Ok(Err(error_msg)) => {

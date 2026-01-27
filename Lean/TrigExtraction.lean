@@ -40,13 +40,14 @@ variable (x y : ℝ)
 -- #parse_equalities Real.sin_add
 -- #runEggTest ((cos x)^2 + (sin x)^2)
 #runEggTest x + 0
+#runEggTestDirectional x + 0
+
 -- #runEggTest x + 1
 -- #runEggTest (1 - (sin x)^2)
 -- #runEggTest sin ((1 + x) - x)^2 + (cos (1))^2
 -- #runEggTest (1 + x) - x
 -- #runEggTest (sin x) * (sin x) * (sin x) * (sin x)
-#runEggTestDirectional sin x + 0 * y
--- #runEggTestDirectional (tan (tan x - sin x / cos x))
+#runEggTestDirectional tan ( tan x - sin x / cos x )
 #runEggTestDirectional (1 + x) - x
 #runEggTestDirectional sin (x + y) + sin (x - y)
 #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 3
