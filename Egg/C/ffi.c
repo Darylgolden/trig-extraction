@@ -47,6 +47,11 @@ typedef struct directed_rw_rule_array {
     size_t            len;
 } directed_rw_rule_array;
 
+typedef struct norm_num_result {
+    bool success;
+    const char* result;
+} norm_num_result;
+
 rw_rule_array rw_rule_array_from_lean_obj(lean_obj_arg rws) {
     lean_object** rws_c_ptr = lean_array_cptr(rws);
     size_t rws_count = lean_array_size(rws);

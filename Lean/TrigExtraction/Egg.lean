@@ -28,12 +28,14 @@ def EGraph.querySafe (egraph : EGraph) (query : String) : Except String EggResul
     Except.error result.explanation
 
 @[export transfer_string]
-def sayHi (name : String) : String :=
-  s!"Hello {name}!"
+def callNormNumSafe (eggExpr : String) : TermElabM (Except String String) := do
+  try
+    let result ← runNormNum eggExpr
+    return Except.ok result
+  catch e =>
+    return Except.error (← e.toMessageData.toString)
 
-def callNormNum (eggExpr : String) : TermElabM String :=
-  (runNormNum eggExpr)
-
-
+-- def sayHi (name : String) : String :=
+--   s!"Hello {name}!"
 
 -- example : 2 + 2 = 4 := by norm_num

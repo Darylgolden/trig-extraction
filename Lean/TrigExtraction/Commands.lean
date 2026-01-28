@@ -1,5 +1,6 @@
 import Lean
 import TrigExtraction.Language
+import TrigExtraction.Egg
 open Lean Elab Term Meta PrettyPrinter
 
 
