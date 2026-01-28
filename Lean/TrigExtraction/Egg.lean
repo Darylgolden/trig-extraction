@@ -1,27 +1,8 @@
 import Lean
+import TrigExtraction.Dynamic
+import TrigExtraction.Language
+open Lean Elab Term Meta PrettyPrinter
 
-private opaque EGraph.Pointed : NonemptyType.{0}
-
-def EGraph := EGraph.Pointed.type
-
--- IMPORTANT: The C interface to egg depends on the order of these fields.
-structure EggResult where
-  success : Bool
-  term    : String
-  egraph? : Option EGraph
-  explanation : String
-  log : String
-deriving Inhabited
-
--- IMPORTANT: The C interface to egg depends on the order of these fields.
-structure RewriteRule where
-  name : String
-  lhs  : String
-  rhs  : String
-
-structure DirectionalRewriteRule where
-  name : String
-  rule : String
 
 @[extern "run_egg_c"]
 opaque runEgg (target : String) (rws : Array RewriteRule) : Lean.MetaM EggResult
@@ -49,5 +30,10 @@ def EGraph.querySafe (egraph : EGraph) (query : String) : Except String EggResul
 @[export transfer_string]
 def sayHi (name : String) : String :=
   s!"Hello {name}!"
+
+def callNormNum (eggExpr : String) : TermElabM String :=
+  (runNormNum eggExpr)
+
+
 
 -- example : 2 + 2 = 4 := by norm_num

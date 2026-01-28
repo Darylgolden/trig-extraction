@@ -1,6 +1,7 @@
 import TrigExtraction.Basic
 import TrigExtraction.Egg
 import TrigExtraction.Language
+import TrigExtraction.Commands
 import Lean.Elab.Term
 import Lean.PrettyPrinter
 import Mathlib.Data.Real.Basic
@@ -49,9 +50,10 @@ variable (x y : ℝ)
 -- #runEggTest (sin x) * (sin x) * (sin x) * (sin x)
 #runEggTestDirectional tan ( tan x - sin x / cos x )
 #runEggTestDirectional (1 + x) - x
-#runEggTestDirectional sin (x + y) + sin (x - y)
+#runEggTestDirectional sin (x  + y) + sin (x - y)
 #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 3
 -- -- #runEggTest Real.pi
 -- #printASTSize Real.pi
 -- #printASTSize 1
 example : 1 + 1 = 2 := by norm_num
+#check TermElabM
