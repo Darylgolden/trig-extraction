@@ -9,6 +9,8 @@ typedef struct env {
     void* x3;
     void* x4;
     void* x5;
+    void* x6;
+    void* x7;
 } env;
 
 typedef struct rw_rule {
@@ -23,17 +25,27 @@ typedef struct directed_rw_rule {
 } directed_rw_rule;
 
 rw_rule rw_rule_from_lean_obj(lean_obj_arg rw) {
+    lean_object* name_obj = lean_ctor_get(rw, 0);
+    lean_object* lhs_obj = lean_ctor_get(rw, 1);
+    lean_object* rhs_obj = lean_ctor_get(rw, 2);
+    lean_inc(name_obj);
+    lean_inc(lhs_obj);
+    lean_inc(rhs_obj);
     return (rw_rule) { 
-        .name = lean_string_cstr(lean_ctor_get(rw, 0)),
-        .lhs  = lean_string_cstr(lean_ctor_get(rw, 1)),
-        .rhs  = lean_string_cstr(lean_ctor_get(rw, 2))
+        .name = lean_string_cstr(name_obj),
+        .lhs  = lean_string_cstr(lhs_obj),
+        .rhs  = lean_string_cstr(rhs_obj)
     };
 }
 
 directed_rw_rule directed_rw_rule_from_lean_obj(lean_obj_arg directed_rw) {
+    lean_object* name_obj = lean_ctor_get(directed_rw, 0);
+    lean_object* rule_obj = lean_ctor_get(directed_rw, 1);
+    lean_inc(name_obj);
+    lean_inc(rule_obj);
     return (directed_rw_rule) {
-        .name = lean_string_cstr(lean_ctor_get(directed_rw, 0)),
-        .rule = lean_string_cstr(lean_ctor_get(directed_rw, 1))
+        .name = lean_string_cstr(name_obj),
+        .rule = lean_string_cstr(rule_obj)
     };
 }
 
@@ -135,40 +147,40 @@ extern egg_result run_egg(const char* target, rw_rule_array rws, void* e);
 
 extern egg_result run_egg_directional(const char* target, directed_rw_rule_array directed_rws, void* e);
 
-lean_obj_res run_egg_c(lean_obj_arg target, lean_obj_arg rw_rules, lean_obj_arg x1, lean_obj_arg x2, lean_obj_arg x3, lean_obj_arg x4, lean_obj_arg x5) {
-    env e = { .x1 = x1, .x2 = x2, .x3 = x3, .x4 = x4, .x5 = x5 };
+lean_obj_res run_egg_c(lean_obj_arg target, lean_obj_arg rw_rules, lean_obj_arg x1, lean_obj_arg x2, lean_obj_arg x3, lean_obj_arg x4, lean_obj_arg x5, lean_obj_arg x6, lean_obj_arg x7) {
+    env e = { .x1 = x1, .x2 = x2, .x3 = x3, .x4 = x4, .x5 = x5, .x6 = x6, .x7 = x7 };
     const char* tgt = lean_string_cstr(target);
     rw_rule_array rws = rw_rule_array_from_lean_obj(rw_rules);
     
     egg_result res = run_egg(tgt, rws, &e);
     
     lean_obj_res result = egg_result_to_lean(res);
-    lean_object* metam_state = lean_alloc_ctor(0, 2, 0);
-    lean_ctor_set(metam_state, 0, result);
-    lean_ctor_set(metam_state, 1, x5);
+    lean_object* termelabm_state = lean_alloc_ctor(0, 2, 0);
+    lean_ctor_set(termelabm_state, 0, result);
+    lean_ctor_set(termelabm_state, 1, x7);
 
     // TODO: Is it safe to free this?
     free(rws.ptr);
 
-    return metam_state;
+    return termelabm_state;
 }
 
-lean_obj_res run_egg_directional_c(lean_obj_arg target, lean_obj_arg directed_rw_rules, lean_obj_arg x1, lean_obj_arg x2, lean_obj_arg x3, lean_obj_arg x4, lean_obj_arg x5) {
-    env e = { .x1 = x1, .x2 = x2, .x3 = x3, .x4 = x4, .x5 = x5 };
+lean_obj_res run_egg_directional_c(lean_obj_arg target, lean_obj_arg directed_rw_rules, lean_obj_arg x1, lean_obj_arg x2, lean_obj_arg x3, lean_obj_arg x4, lean_obj_arg x5, lean_obj_arg x6, lean_obj_arg x7) {
+    env e = { .x1 = x1, .x2 = x2, .x3 = x3, .x4 = x4, .x5 = x5, .x6 = x6, .x7 = x7 };
     const char* tgt = lean_string_cstr(target);
     directed_rw_rule_array directed_rws = directed_rw_rule_array_from_lean_obj(directed_rw_rules);
 
     egg_result res = run_egg_directional(tgt, directed_rws, &e);
 
     lean_obj_res result = egg_result_to_lean(res);
-    lean_object* metam_state = lean_alloc_ctor(0, 2, 0);
-    lean_ctor_set(metam_state, 0, result);
-    lean_ctor_set(metam_state, 1, x5);
+    lean_object* termelabm_state = lean_alloc_ctor(0, 2, 0);
+    lean_ctor_set(termelabm_state, 0, result);
+    lean_ctor_set(termelabm_state, 1, x7);
 
     // TODO: Is it safe to free this?
     free(directed_rws.ptr);
 
-    return metam_state;
+    return termelabm_state;
 }   
 
 extern egg_result query_egraph(egraph graph, const char* query);
@@ -180,14 +192,47 @@ lean_obj_res query_egraph_c(b_lean_obj_arg g, lean_obj_arg q) {
     return egg_result_to_lean(result);    
 }
 
-extern lean_object* transfer_string(lean_object* name);
+extern lean_object* transfer_string(
+    lean_object* egg_expr,
+    lean_object* x1,
+    lean_object* x2,
+    lean_object* x3,
+    lean_object* x4,
+    lean_object* x5,
+    lean_object* x6,
+    lean_object* x7
+);
 
-const char *rs_transfer_string(const char* name) {
-    lean_object* lean_name = lean_mk_string(name);
-    lean_object* s = transfer_string(lean_name);
-    size_t len = lean_string_size(s);
-    char* str = (char*)malloc(len + 1);
-    strcpy(str, lean_string_cstr(s));
-    lean_dec(s);
-    return str;
+norm_num_result rs_transfer_string(const void* v, const char* str) {
+    env* e = (env*)v;
+    lean_object* lean_str = lean_mk_string(str);
+
+    lean_inc(e->x1); lean_inc(e->x2); lean_inc(e->x3); lean_inc(e->x4); lean_inc(e->x5); lean_inc(e->x6); lean_inc(e->x7);
+    lean_object* res = transfer_string(lean_str, e->x1, e->x2, e->x3, e->x4, e->x5, e->x6, e->x7);
+    lean_object* exc = lean_ctor_get(res, 0);
+    lean_inc(exc);  // Increment reference count before extracting data
+
+    norm_num_result final_res;
+
+    if (lean_obj_tag(exc) == 1) {
+        // Except.ok case
+        final_res.success = true;
+        lean_object* result_str = lean_ctor_get(exc, 0);
+        size_t len = lean_string_size(result_str);
+        char* str = (char*)malloc(len + 1);
+        strcpy(str, lean_string_cstr(result_str));
+        final_res.result = str;
+    } else {
+        // Except.error case
+        final_res.success = false;
+        lean_object* error_str = lean_ctor_get(exc, 0);
+        size_t len = lean_string_size(error_str);
+        char* str = (char*)malloc(len + 1);
+        strcpy(str, lean_string_cstr(error_str));
+        final_res.result = str;
+    }
+
+    lean_dec(exc);
+    lean_dec(res);
+    return final_res;
 }

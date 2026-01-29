@@ -10,6 +10,17 @@ require "leanprover-community" / "mathlib"
 lean_lib TrigExtraction where
   -- This enables the interpreter to run functions marked `@[extern]`.
   precompileModules := true
+  moreLinkArgs := #[
+    "-L", s!"{__dir__}/.lake/build/lib",
+    "-Wl,-rpath,", s!"{__dir__}/.lake/build/lib",
+    "-lffi",
+    "-legg_for_lean"
+  ]
+  moreLeancArgs := #[
+    "-L", s!"{__dir__}/.lake/build/lib",
+    "-lffi",
+    "-legg_for_lean"
+  ]
 
 target importTarget pkg : System.FilePath :=
   pkg.afterBuildCacheAsync do

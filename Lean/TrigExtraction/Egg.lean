@@ -5,12 +5,12 @@ open Lean Elab Term Meta PrettyPrinter
 
 
 @[extern "run_egg_c"]
-opaque runEgg (target : String) (rws : Array RewriteRule) : Lean.MetaM EggResult
+opaque runEgg (target : String) (rws : Array RewriteRule) : TermElabM EggResult
 
 @[extern "run_egg_directional_c"]
-opaque runEggDirectional (target : String) (directedRws : Array DirectionalRewriteRule) : Lean.MetaM EggResult
+opaque runEggDirectional (target : String) (directedRws : Array DirectionalRewriteRule) : TermElabM EggResult
 
-def runEggSafe (target : String) (rws : Array RewriteRule) : Lean.MetaM (Except String EggResult) := do
+def runEggSafe (target : String) (rws : Array RewriteRule) : TermElabM (Except String EggResult) := do
   let result ← runEgg target rws
   if result.success then
     return Except.ok result

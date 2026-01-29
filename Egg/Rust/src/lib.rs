@@ -77,6 +77,12 @@ pub struct CDirectedRewriteRuleArray {
     len: usize,
 }
 
+#[repr(C)]
+pub struct NormNumResult {
+    success: bool,
+    result: *const c_char
+}
+
 impl CRewriteRuleArray {
 
     fn to_vec(&self) -> Vec<RewriteRule> {
@@ -340,12 +346,16 @@ pub extern "C" fn run_egg(target: *const c_char, rws: CRewriteRuleArray, _env: *
 }
 
 #[no_mangle]
-pub extern "C" fn run_egg_directional(target: *const c_char, directed_rws: CDirectedRewriteRuleArray, _env: *const c_void) -> EggResult {
+pub extern "C" fn run_egg_directional(target: *const c_char, directed_rws: CDirectedRewriteRuleArray, env: *const c_void) -> EggResult {
     let result = panic::catch_unwind(|| {
         let target = c_str_to_string(target);
         let directed_rws = directed_rws.to_vec();
         simplify_expr_directional(target, directed_rws)
     });
+    unsafe {
+        let test_s = c_str_to_string(rs_transfer_string(env, string_to_c_str(String::from("(+ 1 1)"))).result);
+        println!("{}", test_s);
+    }
     match result {
         Ok(Ok(egg_result)) => egg_result,
         Ok(Err(error_msg)) => {
@@ -430,5 +440,5 @@ pub unsafe extern "C" fn free_egraph(egraph: *mut EGraph<L, ()>) {
 }
 
 extern "C" {
-    fn rs_transfer_string(name: *const c_char) -> *const c_char;
+    fn rs_transfer_string(env: *const c_void, name: *const c_char) -> NormNumResult;
 }

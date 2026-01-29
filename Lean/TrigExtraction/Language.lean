@@ -391,10 +391,16 @@ def eggStringToStx (s : String) : MetaM Syntax := do
   | .error msg => throwError s!"{msg}"
 
 def eggStringToExpr (s : String) : TermElabM Expr := do
+  logInfo m!"Received string {s} from Rust"
   let eggStx ← eggStringToStx s
-  let lang ← syntaxToSymbolLang eggStx
-  let e ← symbolLangToExpr lang
-  return e
+  logInfo m!"Syntax is {eggStx}"
+  let res := eggSyntaxToSymbolLang eggStx
+  match res with
+  | .ok l => do
+      let e ← symbolLangToExpr l
+      return e
+  | .error msg => throwError msg
+  -- logInfo m!"lang is {lang}"
 
 
 inductive ParseResult where
