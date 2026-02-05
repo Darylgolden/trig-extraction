@@ -30,6 +30,7 @@ def EGraph.querySafe (egraph : EGraph) (query : String) : Except String EggResul
 @[export transfer_string]
 def callNormNumSafe (eggExpr : String) : TermElabM (Except String String) := do
   try
+    IO.println "Hello world!"
     let result ← runNormNum eggExpr
     return Except.ok result
   catch e =>

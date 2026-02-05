@@ -2,7 +2,21 @@ use egg::*;
 // mod custom_schedulers;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::panic;
+use std::sync::RwLock;
 use std::time::Duration;
+use std::collections::HashMap;
+use lazy_static::lazy_static;
+
+// static CALL_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+// thread_local! {
+//     static CALL_COUNTER_LOCAL: AtomicU32 = AtomicU32::new(0);
+// }
+
+lazy_static! {
+    // static ref CALL_COUNTER_LAZY: AtomicU32 = AtomicU32::new(0);
+    static ref NN_CACHE: RwLock<HashMap<RecExpr<L>, Result<RecExpr<L>, String>>> = Default::default();
+}
 
 define_language! { 
     pub enum L { 
@@ -119,7 +133,69 @@ pub struct EggResult {
     log: *const c_char
 }
 
+// #[derive(Default)]
+// struct Simplifier {
+//     nn_cache: HashMap<RecExpr<L>, Result<RecExpr<L>, String>>
+// }
+
+// impl Simplifier {
+//     fn simplify_with_norm_num(&mut self, expr: RecExpr<L>, env: *const c_void) -> Result<RecExpr<L>, String> {
+//         match self.nn_cache.get(&expr) {
+//             Some(r) => r.clone(),
+//             None => {
+//                 let str = string_to_c_str(expr.to_string());
+//                 let norm_num_result = unsafe {rs_transfer_string(env, str) };
+//                 if norm_num_result.success {
+//                     let res_str = c_str_to_string(norm_num_result.result);
+//                     let res_expr = res_str.parse().unwrap();
+//                     let result = Ok(res_expr);
+//                     self.nn_cache.insert(expr, result.clone());
+//                     return result;
+//                 } else {
+//                     let err_str = c_str_to_string(norm_num_result.result);
+//                     let result = Err(err_str);
+//                     self.nn_cache.insert(expr, result.clone());
+//                     return result;
+//                 }
+//             }
+//         }
+//     }
+// }
+
+// fn call_norm_num(expr : RecExpr<L>, ) -> RecExpr<L>
+// can't use memoize directly because environment might not be same
+
+// static mut NN_CACHE : RefCell<HashMap<RecExpr<L>, Result<RecExpr<L>, String>>> = RefCell::new(Default::default());
+
 // return pair of vec of rewrite rules and error messages instead?
+fn simplify_with_norm_num(expr: RecExpr<L>, env: *const c_void) -> Result<RecExpr<L>, String> {
+    {
+        let cache = NN_CACHE.read().unwrap();
+        if let Some(r) = cache.get(&expr) {
+            return r.clone()
+        }
+    }
+    let str = string_to_c_str(expr.to_string());
+    let norm_num_result = unsafe {rs_transfer_string(env, str) };
+        if norm_num_result.success {
+            let res_str = c_str_to_string(norm_num_result.result);
+            let res_expr = res_str.parse().unwrap();
+            let result = Ok(res_expr);
+            NN_CACHE.write().unwrap().insert(expr, result.clone());
+            return result;
+        } else {
+            let err_str = c_str_to_string(norm_num_result.result);
+            let result = Err(err_str);
+            NN_CACHE.write().unwrap().insert(expr, result.clone());
+            return result;
+    }
+}
+
+// same as simplify_with_norm_num, but returns original expr if error
+fn safe_simplify_with_norm_num(expr: RecExpr<L>, env: *const c_void) -> RecExpr<L> {
+    expr
+}
+
 fn make_rules(rws: Vec<RewriteRule>) -> (Vec<egg::Rewrite<L, ()>>, Vec<String>){
     let mut rules = Vec::new();
     let mut errors = Vec::new();
@@ -347,14 +423,33 @@ pub extern "C" fn run_egg(target: *const c_char, rws: CRewriteRuleArray, _env: *
 
 #[no_mangle]
 pub extern "C" fn run_egg_directional(target: *const c_char, directed_rws: CDirectedRewriteRuleArray, env: *const c_void) -> EggResult {
+    // let count = CALL_COUNTER.fetch_add(1, Ordering::SeqCst);
+    // eprintln!("[FFI] This is call number: {}", count);
+    // CALL_COUNTER_LOCAL.with(|count| {
+    //     let c = count.fetch_add(1, Ordering::SeqCst);
+    //     eprintln!("[FFI local thread] This is call number: {}", c);
+    // });
+    // let x = CALL_COUNTER_LAZY.fetch_add(1, Ordering::SeqCst);
+    // eprintln!("[FFI lazy] This is call number: {}", x);
+
     let result = panic::catch_unwind(|| {
         let target = c_str_to_string(target);
         let directed_rws = directed_rws.to_vec();
         simplify_expr_directional(target, directed_rws)
     });
-    unsafe {
-        let test_s = c_str_to_string(rs_transfer_string(env, string_to_c_str(String::from("(+ 1 1)"))).result);
-        println!("{}", test_s);
+    // unsafe {
+    //     let norm_result = rs_transfer_string(env, string_to_c_str(String::from("(+ 1 1)")));
+    //     if norm_result.success {
+    //         let test_s = c_str_to_string(norm_result.result);
+    //         // eprintln!("[FFI Test] NormNum result: {}", test_s);
+    //     } else {
+    //         // eprintln!("[FFI Test] NormNum failed");
+    //     }
+    // }
+    let norm_num_result = simplify_with_norm_num("(+ 1 1)".parse().unwrap(), env);
+    match norm_num_result {
+        Ok(res) => eprintln!("Norm num success: {res}"),
+        Err(msg) => eprintln!("Something went wrong: {msg}")
     }
     match result {
         Ok(Ok(egg_result)) => egg_result,

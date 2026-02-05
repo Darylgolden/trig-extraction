@@ -52,6 +52,10 @@ variable (x y : ℝ)
 -- #runEggTestDirectional (1 + x) - x
 -- #runEggTestDirectional sin (x  + y) + sin (x - y)
 #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 3
+#runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 5
+-- #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 11
+-- #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 0
+
 -- -- -- #runEggTest Real.pi
 -- -- #printASTSize Real.pi
 -- -- #printASTSize 1

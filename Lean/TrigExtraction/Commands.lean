@@ -78,6 +78,7 @@ elab "#runEggTest" t:term : command => do
 
 elab "#runEggTestDirectional" t:term : command => do
   Command.runTermElabM fun _ => do
+    logInfo m!"test"
     let e ← elabTerm t none
     let stx' ← delab e
     let l ← syntaxToSymbolLang stx'
@@ -87,6 +88,7 @@ elab "#runEggTestDirectional" t:term : command => do
     let result ← runEggDirectional str directed_rw_rules
     logInfo m!"{result.term}"
     logInfo m!"Explanation: \n {result.explanation}"
+    logInfo m!"Log: \n {result.log}"
 
 elab "#printASTSize" t:term : command => do
   Command.runTermElabM fun _ => do
