@@ -12,10 +12,15 @@ use lazy_static::lazy_static;
 // thread_local! {
 //     static CALL_COUNTER_LOCAL: AtomicU32 = AtomicU32::new(0);
 // }
+struct SendPtr(*const c_void);
+unsafe impl Send for SendPtr {}
+unsafe impl Sync for SendPtr {}
 
 lazy_static! {
     // static ref CALL_COUNTER_LAZY: AtomicU32 = AtomicU32::new(0);
     static ref NN_CACHE: RwLock<HashMap<RecExpr<L>, Result<RecExpr<L>, String>>> = Default::default();
+    static ref ENVIRONMENT: RwLock<Option<SendPtr>> = RwLock::new(None);
+
 }
 
 define_language! { 
@@ -124,11 +129,12 @@ impl CDirectedRewriteRuleArray {
     }
 }
 
+// todo: generics for analysis?
 #[repr(C)]
 pub struct EggResult {
     success: bool,
     term: *const c_char,
-    egraph: Option<Box<EGraph<L, ()>>>,
+    egraph: Option<Box<EGraph<L, ConstantFold>>>,
     explanation: *const c_char,
     log: *const c_char
 }
@@ -202,22 +208,78 @@ fn safe_simplify_with_norm_num(expr: RecExpr<L>, env: *const c_void) -> RecExpr<
 
 // // need numlit?
 // cannot be default, needs env and egraph and extractor
-// #[derive(Default)]
-// pub struct ConstantFold;
-// impl Analysis<L> for ConstantFold {
-//     type Data = Option<(RecExpr<L>, RecExpr<L>)>;
+#[derive(Default)]
+pub struct ConstantFold;
 
-//     fn make(egraph: &mut EGraph<L, Self>, enode: &L) -> Self::Data {
-//         let x = |i: &Id| egraph[*i].data.as_ref().map(|d| d.0);
-//         Some(match enode {
-//             L::Const(c) => (safe_simplify_with_norm_num(c.extract(), env), L::Const(c)),
+// the first item is meant to represent the simplified expr, following the example in math.rs
+// the second item is meant to represent an item
+impl Analysis<L> for ConstantFold {
+    type Data = Option<(RecExpr<L>, PatternAst<L>)>;
 
-//         })
+    fn make(egraph: &mut EGraph<L, Self>, enode: &L) -> Self::Data {
+        let env = ENVIRONMENT.read().unwrap()
+            .as_ref()
+            .map(|p| p.0)
+            .expect("Environment not set");
+        let x = |i: &Id| egraph[*i].data.as_ref().map(|d| d.0.clone());
+        Some(match enode {
+            L::Num(n) => { 
+                let s = format!("{}", n);
+                (s.parse().unwrap(), s.parse().unwrap()) 
+            }
+            L::Pi => { 
+                let s = "pi";
+                (s.parse().unwrap(), s.parse().unwrap()) 
+            }
+            L::Add([a, b]) => { 
+                let s = format!("(+ {} {})", x(a)?, x(b)?);
+                (safe_simplify_with_norm_num(s.parse().unwrap(), env), s.parse().unwrap())
+            }
+            L::Mul([a, b]) => {
+                let s = format!("(* {} {})", x(a)?, x(b)?);
+                (safe_simplify_with_norm_num(s.parse().unwrap(), env), s.parse().unwrap())
+            }
+            L::Sub([a, b]) => {
+                let s = format!("(- {} {})", x(a)?, x(b)?);
+                (safe_simplify_with_norm_num(s.parse().unwrap(), env), s.parse().unwrap())
+            }
+            L::Div([a, b]) => {
+                let s = format!("(/ {} {})", x(a)?, x(b)?);
+                (safe_simplify_with_norm_num(s.parse().unwrap(), env), s.parse().unwrap())
+            }
+            L::Pow([a, b]) => {
+                let s = format!("(pow {} {})", x(a)?, x(b)?);
+                (safe_simplify_with_norm_num(s.parse().unwrap(), env), s.parse().unwrap())
+            }
+            L::Neg([a]) => {
+                let s = format!("(neg {})", x(a)?);
+                (safe_simplify_with_norm_num(s.parse().unwrap(), env), s.parse().unwrap())
+            }
+            L::Inv([a]) => {
+                let s = format!("(inv {})", x(a)?);
+                (safe_simplify_with_norm_num(s.parse().unwrap(), env), s.parse().unwrap())
+            }
+            L::Sqrt([a]) => {
+                let s = format!("(sqrt {})", x(a)?);
+                (safe_simplify_with_norm_num(s.parse().unwrap(), env), s.parse().unwrap())
+            }
+            _ => return None,
+        })
+    }
 
-//     }
-// }
+    fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
+        merge_option(to, from, |_a, _b| {DidMerge(false, false)})
+    }
 
-fn make_rules(rws: Vec<RewriteRule>) -> (Vec<egg::Rewrite<L, ()>>, Vec<String>){
+    fn modify(egraph: &mut EGraph<L, Self>, id: Id) {
+        let data: Option<(RecExpr<L>, PatternAst<L>)> = egraph[id].data.clone();
+        if let Some((spl, pat)) = data {
+            egraph.union_instantiations(&pat, &format!("{}", spl).parse().unwrap(), &Default::default(), "norm_num".to_string());
+        }
+    }
+}
+
+fn make_rules(rws: Vec<RewriteRule>) -> (Vec<egg::Rewrite<L, ConstantFold>>, Vec<String>){
     let mut rules = Vec::new();
     let mut errors = Vec::new();
     
@@ -262,7 +324,7 @@ fn make_rules(rws: Vec<RewriteRule>) -> (Vec<egg::Rewrite<L, ()>>, Vec<String>){
     (rules, errors)
 }
 
-fn make_rules_directional(directed_rws: Vec<DirectedRewriteRule>) -> (Vec<egg::Rewrite<L, ()>>, Vec<String>) {
+fn make_rules_directional(directed_rws: Vec<DirectedRewriteRule>) -> (Vec<egg::Rewrite<L, ConstantFold>>, Vec<String>) {
     let mut rules= Vec::new();
     let mut errors = Vec::new();
 
@@ -355,7 +417,7 @@ fn simplify_expr(target: String, rws: Vec<RewriteRule>) -> Result<EggResult, Str
     let expr: RecExpr<L> = target.parse()
         .map_err(|e| format!("Failed to parse target expression '{}': {:?}", target, e))?;
     let (rewrites, errors) = make_rules(rws);
-    let mut runner = Runner::default()
+    let mut runner: Runner<L, ConstantFold> = Runner::new(ConstantFold)
                                         .with_node_limit(10000)
                                         .with_scheduler(BackoffScheduler::default().with_initial_match_limit(5))
                                         .with_explanations_enabled()
@@ -380,7 +442,7 @@ fn simplify_expr_directional(target: String, directed_rws: Vec<DirectedRewriteRu
     let expr: RecExpr<L> = target.parse()
         .map_err(|e| format!("Failed to parse target expression '{}': {:?}", target, e))?;
     let (rewrites, errors) = make_rules_directional(directed_rws);
-    let mut runner = Runner::default()
+    let mut runner: Runner<L, ConstantFold> = Runner::new(ConstantFold)
                                                         .with_node_limit(10000)
                                                         .with_explanations_enabled()
                                                         .with_expr(&expr)
@@ -452,6 +514,7 @@ pub extern "C" fn run_egg_directional(target: *const c_char, directed_rws: CDire
     // });
     // let x = CALL_COUNTER_LAZY.fetch_add(1, Ordering::SeqCst);
     // eprintln!("[FFI lazy] This is call number: {}", x);
+    *ENVIRONMENT.write().unwrap() = Some(SendPtr(env));
 
     let result = panic::catch_unwind(|| {
         let target = c_str_to_string(target);
@@ -503,7 +566,7 @@ pub extern "C" fn run_egg_directional(target: *const c_char, directed_rws: CDire
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn query_egraph(egraph: *mut EGraph<L, ()>, query: *const c_char) -> EggResult {
+pub unsafe extern "C" fn query_egraph(egraph: *mut EGraph<L, ConstantFold>, query: *const c_char) -> EggResult {
     let result = panic::catch_unwind(|| {
         if egraph.is_null() {
             return Err("Null egraph pointer".to_string());
@@ -551,7 +614,7 @@ pub unsafe extern "C" fn query_egraph(egraph: *mut EGraph<L, ()>, query: *const 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn free_egraph(egraph: *mut EGraph<L, ()>) {
+pub unsafe extern "C" fn free_egraph(egraph: *mut EGraph<L, ConstantFold>) {
     if !egraph.is_null() { drop(Box::from_raw(egraph)); }
 }
 
