@@ -53,6 +53,7 @@ variable (x y : ℝ)
 -- #runEggTestDirectional sin (x  + y) + sin (x - y)
 #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 3
 #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 5
+#runEggTestDirectional cos Real.pi
 -- #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 11
 -- #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 0
 

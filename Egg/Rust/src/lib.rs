@@ -21,6 +21,7 @@ lazy_static! {
 define_language! { 
     pub enum L { 
         Num(i32),
+        "pi" = Pi,
         "+" = Add([Id; 2]),
         "*" = Mul([Id; 2]),
         "-" = Sub([Id; 2]),
@@ -193,7 +194,27 @@ fn simplify_with_norm_num(expr: RecExpr<L>, env: *const c_void) -> Result<RecExp
 
 // same as simplify_with_norm_num, but returns original expr if error
 fn safe_simplify_with_norm_num(expr: RecExpr<L>, env: *const c_void) -> RecExpr<L> {
-    expr
+    let res = simplify_with_norm_num(expr.clone(), env);
+    match res {
+        Ok(final_expr) => final_expr,
+        Err(_) => expr
+    }
+}
+
+// // need numlit?
+#[derive(Default)]
+pub struct ConstantFold;
+impl Analysis<L> for ConstantFold {
+    type Data = Option<(RecExpr<L>, PatternAst<L>)>;
+
+    fn make(egraph: &mut EGraph<L, Self>, enode: &L) -> Self::Data {
+        let x = |i: &Id| egraph[*i].data.as_ref().map(|d| d.0);
+        Some(match enode {
+            L::Const(c) => (c, L::Const(c)),
+
+        })
+
+    }
 }
 
 fn make_rules(rws: Vec<RewriteRule>) -> (Vec<egg::Rewrite<L, ()>>, Vec<String>){
@@ -293,8 +314,8 @@ fn make_rules_directional(directed_rws: Vec<DirectedRewriteRule>) -> (Vec<egg::R
                     Some(Direction::RightToLeft) =>
                         match Rewrite::new(
                         name_rhs_to_lhs.clone(),
-                        lhs_pattern.clone(),
-                        rhs_pattern.clone()
+                        rhs_pattern.clone(),
+                        lhs_pattern.clone()
                         ) {
                             Ok(rule) => rules.push(rule),
                             Err(err) => errors.push(err)
