@@ -202,20 +202,21 @@ fn safe_simplify_with_norm_num(expr: RecExpr<L>, env: *const c_void) -> RecExpr<
 }
 
 // // need numlit?
-#[derive(Default)]
-pub struct ConstantFold;
-impl Analysis<L> for ConstantFold {
-    type Data = Option<(RecExpr<L>, PatternAst<L>)>;
+// cannot be default, needs env and egraph and extractor
+// #[derive(Default)]
+// pub struct ConstantFold;
+// impl Analysis<L> for ConstantFold {
+//     type Data = Option<(RecExpr<L>, RecExpr<L>)>;
 
-    fn make(egraph: &mut EGraph<L, Self>, enode: &L) -> Self::Data {
-        let x = |i: &Id| egraph[*i].data.as_ref().map(|d| d.0);
-        Some(match enode {
-            L::Const(c) => (c, L::Const(c)),
+//     fn make(egraph: &mut EGraph<L, Self>, enode: &L) -> Self::Data {
+//         let x = |i: &Id| egraph[*i].data.as_ref().map(|d| d.0);
+//         Some(match enode {
+//             L::Const(c) => (safe_simplify_with_norm_num(c.extract(), env), L::Const(c)),
 
-        })
+//         })
 
-    }
-}
+//     }
+// }
 
 fn make_rules(rws: Vec<RewriteRule>) -> (Vec<egg::Rewrite<L, ()>>, Vec<String>){
     let mut rules = Vec::new();
