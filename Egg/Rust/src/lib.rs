@@ -33,7 +33,6 @@ define_language! {
         "cos" = Cos([Id; 1]),
         "tan" = Tan([Id; 1]),
         "sqrt" = Sqrt([Id; 1]),
-        "const" = Const([Id; 1]),
         Symbol(Symbol),
     }
 }

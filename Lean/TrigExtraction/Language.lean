@@ -30,14 +30,6 @@ inductive PrintType where
   | NormalExpr
   | Rule
 
--- need to modify const so it takes symbol lang instead of string.
--- want something like const (5) but also const (5 + 5)
-
--- 2 options:
--- const remains for numbers and consts pi
--- consts become wrapper for symbol lang representing constants
--- does e-graph analysis produce a proof?
--- how should const be represented in e-graph lang?
 inductive SymbolLang where
   | Var (name : String) : SymbolLang
   | Add (left right : SymbolLang) : SymbolLang
@@ -51,7 +43,6 @@ inductive SymbolLang where
   | Cos (arg : SymbolLang) : SymbolLang
   | Tan (arg : SymbolLang) : SymbolLang
   | Sqrt (arg : SymbolLang) : SymbolLang
-  | Const (val : SymbolLang) : SymbolLang
   | NumLit (lit : String) : SymbolLang
   | Pi : SymbolLang
   | Other (stx : String) : SymbolLang
@@ -71,7 +62,6 @@ def ASTSize (lang : SymbolLang) : Nat :=
   | .Cos arg => 1 + ASTSize arg
   | .Tan arg => 1 + ASTSize arg
   | .Sqrt arg => 1 + ASTSize arg
-  | .Const val => 1 + ASTSize val -- might consider counting const as 1
   | .NumLit _ => 1
   | .Pi => 1
   | .Other _ => 1
@@ -121,7 +111,6 @@ partial def SymbolLangToString (lang : SymbolLang) : String :=
   | .Cos arg => s!"(cos {SymbolLangToString arg})"
   | .Tan arg => s!"(tan {SymbolLangToString arg})"
   | .Sqrt arg => s!"(sqrt {SymbolLangToString arg})"
-  | .Const c => s!"(const {SymbolLangToString c})"
   | .NumLit lit => lit
   | .Pi => "pi"
   | .Other o => o
@@ -148,7 +137,6 @@ syntax "(tan " egg_expr ")" : egg_expr
 syntax "(sqrt " egg_expr ")" : egg_expr
 syntax "(neg " egg_expr ")" : egg_expr
 syntax "(inv " egg_expr ")" : egg_expr
-syntax "(const " egg_expr ")" : egg_expr
 syntax "pi" : egg_expr
 
 partial def eggSyntaxToSymbolLang (stx : Syntax) : Except String SymbolLang :=
@@ -211,10 +199,6 @@ partial def eggSyntaxToSymbolLang (stx : Syntax) : Except String SymbolLang :=
     let argAST ← eggSyntaxToSymbolLang arg
     .ok (.Sqrt argAST)
 
-  | `(egg_expr| (const $val)) => do
-    let valAST ← eggSyntaxToSymbolLang val
-    .ok (.Const valAST)
-
   | _ => .error s!"Unrecognized egg_expr syntax: {stx}"
 
 -- TODO: convert to not use metaM
@@ -270,17 +254,17 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
     return .Sqrt argAST
 
   | `(term| Real.pi) =>
-    return .Const .Pi
+    return .Pi
 
   | `(term| $id:ident) =>
     let name := id.getId
     if name == `π || name == `Real.pi then
-      return .Const .Pi
+      return .Pi
     else
       return .Var name.toString
 
   | `(term| $n:num) =>
-    return .Const (.NumLit (toString n.getNat))
+    return (.NumLit (toString n.getNat))
 
   | `(term| ($e)) =>
     syntaxToSymbolLang e
@@ -290,7 +274,7 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
 
   | _ =>
     if stx.isOfKind `Real.termπ then
-      return .Const .Pi
+      return .Pi
     else
       let prettyStx ← ppTerm ⟨stx⟩
       return .Other (prettyStx.pretty)
@@ -305,9 +289,6 @@ partial def symbolLangToSyntax (lang : SymbolLang) : MetaM (TSyntax `term) := do
   | .Var x =>
     let id := Lean.mkIdent x.toName
     return id
-
-  | .Const val =>
-    symbolLangToSyntax val
 
   | .NumLit c =>
     let n? := c.toNat?
