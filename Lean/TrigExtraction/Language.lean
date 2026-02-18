@@ -266,6 +266,10 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
   | `(term| $n:num) =>
     return (.NumLit (toString n.getNat))
 
+  | `(term| $n:scientific) =>
+    let (n1, b, n2) := n.getScientific
+    return (.NumLit (toString (Rat.ofScientific n1 b n2)))
+
   | `(term| ($e)) =>
     syntaxToSymbolLang e
 

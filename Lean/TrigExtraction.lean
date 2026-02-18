@@ -68,12 +68,9 @@ variable (x y : ℝ)
 
 
 -- #runEggTestDirectional 1 - (1 /4) * ( sin (2 * x) ) ^ 2 - 1 * ( sin y ) ^ 2 - 1 * ( cos x )^4
-#runEggTestDirectional (0.5) + (1/2)
+#runEggTestDirectional (0.5 + 0.5)
+-- need to debug decimals
 -- #reduce (0 : ℝ)^0
-#reduce (0.5 : ℝ)^0
-#norm_num (0 : ℝ) ^ ( -1 : ℤ)
-example : (0 : ℝ) ^ ( -1 : ℤ) = 0 := by norm_num
-#eval 0/0
 -- #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 11
 -- #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 0
 
@@ -82,3 +79,14 @@ example : (0 : ℝ) ^ ( -1 : ℤ) = 0 := by norm_num
 -- -- #printASTSize 1
 -- example : 1 + 1 = 2 := by norm_num
 -- #check TermElabM
+-- #reduce (0.5 : ℝ)^0
+-- #norm_num (0 : ℝ) ^ ( -1 : ℤ)
+-- example : (0 : ℝ) ^ ( -1 : ℤ) = 0 := by norm_num
+-- #eval 0/0
+#eval syntaxToAST 0.5 + 0.5
+-- #eval show MetaM Unit from do
+--   let env ← getEnv
+--   let categories := Parser.parserExtension.getState env |>.categories
+--   for (name, _) in categories do
+--     IO.println name
+#eval Rat.ofScientific (2) true (1)
