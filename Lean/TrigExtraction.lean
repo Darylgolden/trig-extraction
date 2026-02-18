@@ -51,9 +51,29 @@ variable (x y : ℝ)
 -- #runEggTestDirectional tan ( tan x - sin x / cos x )
 -- #runEggTestDirectional (1 + x) - x
 -- #runEggTestDirectional sin (x  + y) + sin (x - y)
-#runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 3
-#runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 5
-#runEggTestDirectional cos Real.pi
+-- #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 3
+-- #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 5
+-- #runEggTestDirectional cos Real.pi
+-- #runEggTestDirectional sin (1 + 2)
+-- #runEggTestDirectional 30 + 60
+
+-- #runEggTestDirectional sin (1 - 2)
+-- #runEggTestDirectional cos (x + y) + cos (x - y)
+-- #eval (30 + 60 : ℝ)
+-- #runEggTestDirectional sin (x) ^ 2 + cos (x) ^ 2
+-- #runEggTestDirectional 2 * ( sin x ) ^ 2 + 2 * ( cos x ) ^ 2
+-- #runEggTestDirectional 2 * 1 + -2 * ( cos x ) ^ 2
+
+-- #runEggTestDirectional -2 * ( cos x ) ^ 2 - 2 * -( cos x ) ^ 2
+
+
+-- #runEggTestDirectional 1 - (1 /4) * ( sin (2 * x) ) ^ 2 - 1 * ( sin y ) ^ 2 - 1 * ( cos x )^4
+#runEggTestDirectional (0.5) + (1/2)
+-- #reduce (0 : ℝ)^0
+#reduce (0.5 : ℝ)^0
+#norm_num (0 : ℝ) ^ ( -1 : ℤ)
+example : (0 : ℝ) ^ ( -1 : ℤ) = 0 := by norm_num
+#eval 0/0
 -- #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 11
 -- #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 0
 

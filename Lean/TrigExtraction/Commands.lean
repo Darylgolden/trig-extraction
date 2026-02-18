@@ -70,8 +70,8 @@ elab "#runEggTest" t:term : command => do
     let str := SymbolLangToString l
     logInfo m!"Target parsed as {str}"
     let rw_rules ← parseEqualities trigRules
-    -- for rule in rw_rules do
-    --   logInfo m!"Rule: {rule.name}: {rule.lhs} => {rule.rhs}"
+    for rule in rw_rules do
+      logInfo m!"Rule: {rule.name}: {rule.lhs} => {rule.rhs}"
     let result ← runEgg str rw_rules
     logInfo m!"{result.term}"
     logInfo m!"Explanation: \n {result.explanation}"

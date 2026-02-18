@@ -20,6 +20,9 @@ inductive Direction where
 
 axiom pow_one_rule : ∀ (x : ℝ), x ^ 1 = x
 axiom zpow_succ : ∀ (x : ℝ) (y : ℤ), x ^ (y + 1) = x ^ y * x
+axiom zpow_minus : ∀ (x : ℝ) (y : ℤ), x ^ y = x ^ (y - 1) * x
+axiom neg_distrib : ∀ (x y : ℝ), -(x * y) = (-x) * y
+axiom neg_comm : ∀ (x y : ℝ), -x * y = x * -y
 
 -- field axioms
 def baseRules : List Name :=
@@ -61,7 +64,8 @@ def baseRulesDirectional :=
     (``Lean.Grind.Semiring.mul_assoc, Direction.both),
     (``Lean.Grind.Semiring.mul_one, Direction.left_to_right),
     (``Lean.Grind.Semiring.one_mul, Direction.left_to_right),
-    (``Lean.Grind.Semiring.left_distrib, Direction.left_to_right),
+    (``Lean.Grind.CommSemiring.mul_comm, Direction.left_to_right),
+    (``Lean.Grind.Semiring.left_distrib, Direction.both),
     (``Lean.Grind.Semiring.zero_mul, Direction.left_to_right),
     (``Lean.Grind.Semiring.mul_zero, Direction.left_to_right),
     (``Lean.Grind.Semiring.pow_zero, Direction.left_to_right),
@@ -69,9 +73,14 @@ def baseRulesDirectional :=
     (``Lean.Grind.Ring.neg_add_cancel, Direction.both),
     (``Lean.Grind.Ring.sub_eq_add_neg, Direction.both),
     (``Lean.Grind.Field.zpow_zero, Direction.left_to_right),
-    (``zpow_succ, Direction.both),
+    -- (``zpow_succ, Direction.both), -- not sound when x = y = 0
+    -- (``zpow_minus, Direction.left_to_right), -- try to get it to simplify squares, but unsound, 0^0 = 1 in Lean, but 0^(-1) * 0 = 0 in Lean
+    (``mul_pow, Direction.both),
+    (``pow_add, Direction.both),
     (``Lean.Grind.Field.zpow_neg, Direction.both),
-    (``pow_one_rule, Direction.both)
+    (``pow_one_rule, Direction.both),
+    (``neg_distrib, Direction.both),
+    (``neg_comm, Direction.both)
   ]
 
 def trigRules : List Name :=
@@ -129,6 +138,8 @@ def trigRulesDirectional :=
     (``Real.sin_zero, Direction.left_to_right),
     (``Real.cos_zero, Direction.left_to_right),
     (``Real.tan_zero, Direction.left_to_right),
+    (``Real.cos_sq', Direction.both),
+    (``Real.sin_sq, Direction.both),
     (``Real.sin_pi_div_six, Direction.left_to_right),
     (``Real.cos_pi_div_six, Direction.left_to_right),
     (``Real.tan_pi_div_six, Direction.left_to_right),
@@ -144,6 +155,7 @@ def trigRulesDirectional :=
     (``Real.two_mul_sin_mul_cos, Direction.both),
     (``Real.two_mul_cos_mul_cos, Direction.both),
     (``Real.two_mul_sin_mul_sin, Direction.both),
+    (``Real.sin_add_sin, Direction.both),
     (``Real.sin_sub_sin, Direction.both),
     (``Real.cos_add_cos, Direction.both),
     (``Real.cos_sub_cos, Direction.both),

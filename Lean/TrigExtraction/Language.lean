@@ -354,9 +354,11 @@ partial def symbolLangToSyntax (lang : SymbolLang) : MetaM (TSyntax `term) := do
   | .Other o =>
     throwError "Cannot convert Other node back to syntax: {o}"
 
-partial def symbolLangToExpr (lang : SymbolLang) : TermElabM Expr := do
+partial def symbolLangToExpr (lang : SymbolLang) (expectedType : Option Expr := none) : TermElabM Expr := do
   let stx ← symbolLangToSyntax lang
-  let e ← elabTerm stx none
+  let realType ← mkConst ``Real
+  let targetType := expectedType.getD realType
+  let e ← elabTermEnsuringType stx targetType
   return e
 
 def ExprToString (e : Expr) : MetaM String := do
@@ -371,14 +373,14 @@ def eggStringToStx (s : String) : MetaM Syntax := do
   | .ok stx => return stx
   | .error msg => throwError s!"{msg}"
 
-def eggStringToExpr (s : String) : TermElabM Expr := do
+def eggStringToExpr (s : String) (expectedType : Option Expr := none) : TermElabM Expr := do
   logInfo m!"Received string {s} from Rust"
   let eggStx ← eggStringToStx s
   logInfo m!"Syntax is {eggStx}"
   let res := eggSyntaxToSymbolLang eggStx
   match res with
   | .ok l => do
-      let e ← symbolLangToExpr l
+      let e ← symbolLangToExpr l expectedType
       return e
   | .error msg => throwError msg
   -- logInfo m!"lang is {lang}"
