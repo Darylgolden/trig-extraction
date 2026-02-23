@@ -401,6 +401,75 @@ def eggStringToExpr (s : String) (expectedType : Option Expr := none) : TermElab
   -- logInfo m!"lang is {lang}"
 
 
+declare_syntax_cat sympy_expr
+syntax ident : sympy_expr
+syntax num : sympy_expr
+
+syntax:65 sympy_expr:65 "+" sympy_expr:66 : sympy_expr    -- left associative
+syntax:65 sympy_expr:65 "-" sympy_expr:66 : sympy_expr    -- left associative
+
+syntax:70 sympy_expr:70 "*" sympy_expr:71 : sympy_expr    -- left associative
+syntax:70 sympy_expr:70 "/" sympy_expr:71 : sympy_expr    -- left associative
+syntax:75 "-" sympy_expr:76 : sympy_expr
+
+syntax:80 sympy_expr:81 "**" sympy_expr:80 : sympy_expr   -- right associative
+syntax:max "sin(" sympy_expr ")" : sympy_expr
+syntax:max "cos(" sympy_expr ")" : sympy_expr
+syntax:max "tan(" sympy_expr ")" : sympy_expr
+syntax:max "sqrt(" sympy_expr ")" : sympy_expr
+syntax "pi" : sympy_expr
+syntax:max "(" sympy_expr ")" : sympy_expr
+syntax "[Sym|" sympy_expr "]" : term
+
+partial def parseSympy (stx: TSyntax `sympy_expr) : Except String SymbolLang := do
+  match stx with
+  | `(sympy_expr| $n:num) =>
+    return (.NumLit (toString n.getNat))
+  | `(sympy_expr| pi) =>
+    return .Pi
+  | `(sympy_expr| $id:ident) =>
+    return .Var id.getId.toString
+  | `(sympy_expr| $left + $right) =>
+    let leftAST ← parseSympy left
+    let rightAST ← parseSympy right
+    return (.Add leftAST rightAST)
+  | `(sympy_expr| $left - $right) =>
+    let leftAST ← parseSympy left
+    let rightAST ← parseSympy right
+    return (.Sub leftAST rightAST)
+  | `(sympy_expr| $left * $right) =>
+    let leftAST ← parseSympy left
+    let rightAST ← parseSympy right
+    return (.Mul leftAST rightAST)
+  | `(sympy_expr| $left / $right) =>
+    let leftAST ← parseSympy left
+    let rightAST ← parseSympy right
+    return (.Div leftAST rightAST)
+  | `(sympy_expr| - $arg) =>
+    let argAST ← parseSympy arg
+    return (.Neg argAST)
+  | `(sympy_expr| $left ** $right) =>
+    let leftAST ← parseSympy left
+    let rightAST ← parseSympy right
+    return (.Pow leftAST rightAST)
+  | `(sympy_expr| sin($inner)) =>
+    let innerAST ← parseSympy inner
+    return (.Sin innerAST)
+  | `(sympy_expr| cos($inner)) =>
+    let innerAST ← parseSympy inner
+    return (.Cos innerAST)
+  | `(sympy_expr| tan($inner)) =>
+    let innerAST ← parseSympy inner
+    return (.Tan innerAST)
+  | `(sympy_expr| sqrt($inner)) =>
+    let innerAST ← parseSympy inner
+    return (.Sqrt innerAST)
+  | `(sympy_expr| ($inner)) =>
+    let innerAST ← parseSympy inner
+    return innerAST
+  | _ => .error s!"Unrecognized sympy syntax: {stx}"
+
+
 inductive ParseResult where
   | success (name : Name) (lhs rhs : Expr)
   | failure (name : Name) (e : Expr) (reason : String)

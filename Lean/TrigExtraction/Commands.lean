@@ -139,3 +139,10 @@ elab "#parse_equalities " ids:ident+ : command => do
         logInfo m!"[OK] {name}: LHS: {lhs} RHS: {rhs}"
       | ParseResult.failure name e reason =>
         logWarning m!"[WARN] {name} failed to parse; expr is {e}, reason: {reason}"
+
+elab "#sympyToAST " t:sympy_expr : command => do
+  match parseSympy t with
+  | .ok ast =>
+    Lean.logInfo s!"{repr ast}"
+  | .error msg =>
+    Lean.logError msg
