@@ -86,7 +86,8 @@ variable (x y : ℝ)
 #eval syntaxToAST 0.5 + 0.5
 #eval syntaxToAST (1/2) + (1/2)
 #eval syntaxToAST 0.23
-#runEggTestDirectional 1 + 1
+#runEggTestDirectional sin ( x ) ^ 2 * cos ( -x + x ) ^ 2
+-- sin (x) ^ 2 * cos (-x + x) ^ 2
 
 -- #runEggTestDirectional 0.5 + 0.5
 -- #eval show MetaM Unit from do
