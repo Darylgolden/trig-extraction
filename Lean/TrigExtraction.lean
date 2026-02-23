@@ -68,7 +68,7 @@ variable (x y : ℝ)
 
 
 -- #runEggTestDirectional 1 - (1 /4) * ( sin (2 * x) ) ^ 2 - 1 * ( sin y ) ^ 2 - 1 * ( cos x )^4
-#runEggTestDirectional (0.5 + 0.5)
+-- #runEggTestDirectional (0.5 + 0.5)
 -- need to debug decimals
 -- #reduce (0 : ℝ)^0
 -- #runEggTestDirectional cos 1 * cos 3 + sin 1 * sin 11
@@ -84,9 +84,16 @@ variable (x y : ℝ)
 -- example : (0 : ℝ) ^ ( -1 : ℤ) = 0 := by norm_num
 -- #eval 0/0
 #eval syntaxToAST 0.5 + 0.5
+#eval syntaxToAST (1/2) + (1/2)
+#eval syntaxToAST 0.23
+#runEggTestDirectional 1 + 1
+
+-- #runEggTestDirectional 0.5 + 0.5
 -- #eval show MetaM Unit from do
 --   let env ← getEnv
 --   let categories := Parser.parserExtension.getState env |>.categories
 --   for (name, _) in categories do
 --     IO.println name
 #eval Rat.ofScientific (2) true (1)
+#eval (2 / 3 : ℚ).num
+#eval (2 / 3 : ℚ).den

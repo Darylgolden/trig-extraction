@@ -139,6 +139,16 @@ syntax "(neg " egg_expr ")" : egg_expr
 syntax "(inv " egg_expr ")" : egg_expr
 syntax "pi" : egg_expr
 
+def ratToSymbolLang (q : ℚ) : SymbolLang :=
+  let numer := q.num
+  let denom := q.den
+  let numerAST := match decide (numer < 0) with
+  | true => (.Neg (.NumLit (toString numer.natAbs)))
+  | false => (.NumLit (toString numer.natAbs))
+  .Div numerAST (.NumLit (toString denom))
+
+
+
 partial def eggSyntaxToSymbolLang (stx : Syntax) : Except String SymbolLang :=
   match stx with
   | `(egg_expr| $id:ident) =>
@@ -268,7 +278,8 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
 
   | `(term| $n:scientific) =>
     let (n1, b, n2) := n.getScientific
-    return (.NumLit (toString (Rat.ofScientific n1 b n2)))
+    let q := Rat.ofScientific n1 b n2
+    return ratToSymbolLang q
 
   | `(term| ($e)) =>
     syntaxToSymbolLang e
