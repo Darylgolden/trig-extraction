@@ -421,7 +421,7 @@ syntax "pi" : sympy_expr
 syntax:max "(" sympy_expr ")" : sympy_expr
 syntax "[Sym|" sympy_expr "]" : term
 
-partial def parseSympy (stx: TSyntax `sympy_expr) : Except String SymbolLang := do
+partial def parseSympy (stx: TSyntax `sympy_expr) : MetaM SymbolLang := do
   match stx with
   | `(sympy_expr| $n:num) =>
     return (.NumLit (toString n.getNat))
@@ -467,7 +467,7 @@ partial def parseSympy (stx: TSyntax `sympy_expr) : Except String SymbolLang := 
   | `(sympy_expr| ($inner)) =>
     let innerAST ← parseSympy inner
     return innerAST
-  | _ => .error s!"Unrecognized sympy syntax: {stx}"
+  | _ => throwError s!"Unrecognized sympy syntax: {stx}"
 
 
 inductive ParseResult where

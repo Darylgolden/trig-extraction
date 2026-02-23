@@ -90,6 +90,18 @@ elab "#runEggTestDirectional" t:term : command => do
     logInfo m!"Explanation: \n {result.explanation}"
     logInfo m!"Log: \n {result.log}"
 
+elab "#runEggOnSympyExpr" stx:sympy_expr : command => do
+  Command.runTermElabM fun _ => do
+    let l ← parseSympy stx
+    let str := SymbolLangToString l
+    logInfo m!"Target parsed as {str}"
+    let directed_rw_rules ← parseDirectionalEqualities trigRulesDirectional
+    let result ← runEggDirectional str directed_rw_rules
+    logInfo m!"{result.term}"
+    logInfo m!"Explanation: \n {result.explanation}"
+    logInfo m!"Log: \n {result.log}"
+
+
 elab "#printASTSize" t:term : command => do
   Command.runTermElabM fun _ => do
     let e ← elabTerm t none
@@ -141,8 +153,6 @@ elab "#parse_equalities " ids:ident+ : command => do
         logWarning m!"[WARN] {name} failed to parse; expr is {e}, reason: {reason}"
 
 elab "#sympyToAST " t:sympy_expr : command => do
-  match parseSympy t with
-  | .ok ast =>
-    Lean.logInfo s!"{repr ast}"
-  | .error msg =>
-    Lean.logError msg
+  Command.liftTermElabM do
+    let ast ← parseSympy t
+    logInfo m!"{repr ast}"

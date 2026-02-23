@@ -86,7 +86,12 @@ variable (x y : ℝ)
 #eval syntaxToAST 0.5 + 0.5
 #eval syntaxToAST (1/2) + (1/2)
 #eval syntaxToAST 0.23
-#runEggTestDirectional sin ( x ) ^ 2 * cos ( -x + x ) ^ 2
+-- #runEggTestDirectional sin ( x ) ^ 2 * cos ( -x + x ) ^ 2
+#sympyToAST sin(x)**2*cos(-x + x)**2
+#sympyToAST sin(x)**(2*sin(x)**2 + cos(2*x) + 1)
+#runEggOnSympyExpr 4*sin(x/2)**2*cos(x/2)**2
+
+
 -- sin (x) ^ 2 * cos (-x + x) ^ 2
 
 -- #runEggTestDirectional 0.5 + 0.5
