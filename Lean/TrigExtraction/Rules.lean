@@ -24,6 +24,11 @@ axiom zpow_minus : ∀ (x : ℝ) (y : ℤ), x ^ y = x ^ (y - 1) * x
 axiom neg_distrib : ∀ (x y : ℝ), -(x * y) = (-x) * y
 axiom neg_comm : ∀ (x y : ℝ), -x * y = x * -y
 
+lemma mul_sin_mul_cos (x y : ℝ) : sin x * cos y = (1 / 2) * (sin (x - y) + sin (x + y)) := by grind [Real.two_mul_sin_mul_cos]
+lemma mul_cos_mul_cos (x y : ℝ) : cos x * cos y = (1 / 2) * (cos (x - y) + cos (x + y)) := by grind [Real.two_mul_cos_mul_cos]
+lemma mul_sin_mul_sin (x y : ℝ) : sin x * sin y = (1 / 2) * ( cos (x - y) - cos (x + y)) := by grind [Real.two_mul_sin_mul_sin]
+
+
 -- field axioms
 def baseRules : List Name :=
   [
@@ -152,9 +157,9 @@ def trigRulesDirectional :=
     (``Real.sin_pi_div_two, Direction.left_to_right),
     (``Real.cos_pi_div_two, Direction.left_to_right),
     (``Real.sin_sq_eq_half_sub, Direction.both),
-    (``Real.two_mul_sin_mul_cos, Direction.both),
-    (``Real.two_mul_cos_mul_cos, Direction.both),
-    (``Real.two_mul_sin_mul_sin, Direction.both),
+    (``mul_sin_mul_cos, Direction.both),
+    (``mul_cos_mul_cos, Direction.both),
+    (``mul_sin_mul_sin, Direction.both),
     (``Real.sin_add_sin, Direction.both),
     (``Real.sin_sub_sin, Direction.both),
     (``Real.cos_add_cos, Direction.both),
