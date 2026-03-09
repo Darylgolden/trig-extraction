@@ -89,7 +89,11 @@ variable (x y : ℝ)
 -- #runEggTestDirectional sin ( x ) ^ 2 * cos ( -x + x ) ^ 2
 #sympyToAST sin(x)**2*cos(-x + x)**2
 #sympyToAST sin(x)**(2*sin(x)**2 + cos(2*x) + 1)
-#runEggOnSympyExpr 4*sin(x/2)**2*cos(x/2)**2
+#runEggOnSympyExpr -2*sin(x)**2 - 2*cos(x)**2 - cos(2*x)/2 + 5/2
+
+
+
+
 
 
 -- sin (x) ^ 2 * cos (-x + x) ^ 2
