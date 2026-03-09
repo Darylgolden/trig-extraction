@@ -404,6 +404,7 @@ def eggStringToExpr (s : String) (expectedType : Option Expr := none) : TermElab
 declare_syntax_cat sympy_expr
 syntax ident : sympy_expr
 syntax num : sympy_expr
+syntax scientific : sympy_expr
 
 syntax:65 sympy_expr:65 "+" sympy_expr:66 : sympy_expr    -- left associative
 syntax:65 sympy_expr:65 "-" sympy_expr:66 : sympy_expr    -- left associative
@@ -425,6 +426,10 @@ partial def parseSympy (stx: TSyntax `sympy_expr) : MetaM SymbolLang := do
   match stx with
   | `(sympy_expr| $n:num) =>
     return (.NumLit (toString n.getNat))
+  | `(sympy_expr| $n:scientific) =>
+    let (n1, b, n2) := n.getScientific
+    let q := Rat.ofScientific n1 b n2
+    return ratToSymbolLang q
   | `(sympy_expr| pi) =>
     return .Pi
   | `(sympy_expr| $id:ident) =>
