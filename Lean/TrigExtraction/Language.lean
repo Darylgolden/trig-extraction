@@ -211,7 +211,6 @@ partial def eggSyntaxToSymbolLang (stx : Syntax) : Except String SymbolLang :=
 
   | _ => .error s!"Unrecognized egg_expr syntax: {stx}"
 
--- TODO: convert to not use metaM
 partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
   match stx with
   | `(term| $left + $right) =>
@@ -293,10 +292,6 @@ partial def syntaxToSymbolLang (stx : Syntax) : MetaM SymbolLang := do
     else
       let prettyStx ← ppTerm ⟨stx⟩
       return .Other (prettyStx.pretty)
-
-
-
-
 
 -- TODO: convert to not use metaM
 partial def symbolLangToSyntax (lang : SymbolLang) : MetaM (TSyntax `term) := do

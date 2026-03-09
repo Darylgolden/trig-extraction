@@ -1,7 +1,11 @@
 import Lean
 import TrigExtraction.Language
 import TrigExtraction.Egg
+import Lean.Elab.Tactic.Grind
+import Mathlib.Data.Real.Basic
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 open Lean Elab Term Meta PrettyPrinter
+open Tactic
 
 
 elab "termMatch" t:term : term => do
@@ -156,3 +160,58 @@ elab "#sympyToAST " t:sympy_expr : command => do
   Command.liftTermElabM do
     let ast ← parseSympy t
     logInfo m!"{repr ast}"
+
+
+def tryProveWithGrind (goalType : Expr) (rules : List (Name × Direction)) : TermElabM (Option Expr) := do
+  let mvar ← mkFreshExprMVar goalType (kind := .syntheticOpaque)
+  let ruleNames := rules.map (·.1)
+  let ruleSyntaxes ← ruleNames.toArray.mapM fun name => do
+    let ident := mkIdent name
+    `(Lean.Parser.Tactic.grindParam| $ident:ident)
+  -- let sepArray := Syntax.TSepArray.ofElems ruleSyntaxes
+  let tacticStx ← `(tactic| grind)
+  try
+    let remaining ← Lean.Elab.Tactic.run mvar.mvarId! do
+      Lean.Elab.Tactic.evalTactic tacticStx
+    if remaining.isEmpty then
+      return some mvar
+    else
+      logInfo m!"Grind left {remaining.length} unsolved goals"
+      return none
+  catch e =>
+    logInfo m!"Grind threw error: {← e.toMessageData.toString}"
+    return none
+
+
+elab "#runOnSympyExprAndCheckProof" stx:sympy_expr : command => do
+  Command.runTermElabM fun _ => do
+    -- 1. Parse input
+    let inputAST ← parseSympy stx
+    let inputStr := SymbolLangToString inputAST
+
+    -- 2. Run egg to find simplified form
+    let directed_rw_rules ← parseDirectionalEqualities testDirectionalRule
+    let result ← runEggDirectional inputStr directed_rw_rules
+
+    if !result.success then
+      logInfo "Egg failed to simplify"
+      return
+
+    -- 3. Parse egg's output back to Lean expr
+    let outputExpr ← eggStringToExpr result.term
+    let inputExpr ← symbolLangToExpr inputAST
+    logInfo m!"Input egg string: {inputStr}"
+    logInfo m!"Output egg string: {result.term}"
+    logInfo m!"Input expr: {inputExpr}"
+    logInfo m!"Output expr: {outputExpr}"
+
+    -- 4. Construct the goal: input = output
+    let goal ← mkEq inputExpr outputExpr
+    logInfo m!"Goal: {goal}"
+
+    -- 5. Try to prove with grind + trig rules
+    let proof? ← tryProveWithGrind goal trigRulesDirectional
+
+    match proof? with
+    | some _ => logInfo m!"✓ Proved: {goal}"
+    | none => logInfo m!"✗ Grind couldn't prove: {goal}"

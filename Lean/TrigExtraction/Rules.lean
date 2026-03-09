@@ -24,8 +24,13 @@ axiom zpow_minus : ∀ (x : ℝ) (y : ℤ), x ^ y = x ^ (y - 1) * x
 axiom neg_distrib : ∀ (x y : ℝ), -(x * y) = (-x) * y
 axiom neg_comm : ∀ (x y : ℝ), -x * y = x * -y
 
+@[grind _=_]
 lemma mul_sin_mul_cos (x y : ℝ) : sin x * cos y = (1 / 2) * (sin (x - y) + sin (x + y)) := by grind [Real.two_mul_sin_mul_cos]
+
+@[grind _=_]
 lemma mul_cos_mul_cos (x y : ℝ) : cos x * cos y = (1 / 2) * (cos (x - y) + cos (x + y)) := by grind [Real.two_mul_cos_mul_cos]
+
+@[grind _=_]
 lemma mul_sin_mul_sin (x y : ℝ) : sin x * sin y = (1 / 2) * ( cos (x - y) - cos (x + y)) := by grind [Real.two_mul_sin_mul_sin]
 
 
@@ -175,5 +180,5 @@ def trigRulesDirectional :=
 
 def testDirectionalRule : List (Name × Direction) :=
   [
-    (``Lean.Grind.Semiring.add_zero, Direction.both)
+    (``Real.cos_sq_add_sin_sq, Direction.both)
   ]
