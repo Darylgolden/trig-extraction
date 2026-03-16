@@ -6,8 +6,8 @@ open Real
 
 structure RewriteRuleTerms where
   name : String
-  lhs : term
-  rhs : term
+  lhs : Term
+  rhs : Term
 
 -- def trigRules : Array RewriteRuleTerms :=
 --   [
@@ -176,7 +176,10 @@ def trigRulesDirectional :=
     (``Real.sin_two_mul, Direction.both),
     (``Real.cos_two_mul, Direction.both),
     (``Real.cos_two_mul', Direction.both)
-  ] ++ baseRulesDirectional
+  ]
+
+def combinedRulesDirectional :=
+  trigRulesDirectional ++ baseRulesDirectional
 
 def testDirectionalRule : List (Name × Direction) :=
   [

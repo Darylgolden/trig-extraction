@@ -371,6 +371,15 @@ partial def symbolLangToExpr (lang : SymbolLang) (expectedType : Option Expr := 
   let e ← elabTermEnsuringType stx targetType
   return e
 
+partial def symbolLangToExprSynthesizeMVars (lang : SymbolLang) (expectedType : Option Expr := none) : TermElabM Expr := do
+  let stx ← symbolLangToSyntax lang
+  let realType ← mkConst ``Real
+  let targetType := expectedType.getD realType
+  let e ← elabTermEnsuringType stx targetType
+  synthesizeSyntheticMVarsNoPostponing
+  let e ← instantiateMVars e
+  return e
+
 def ExprToString (e : Expr) : MetaM String := do
   let stx' ← delab e
   let l ← syntaxToSymbolLang stx'
@@ -384,6 +393,25 @@ def eggStringToStx (s : String) : MetaM Syntax := do
   | .error msg => throwError s!"{msg}"
 
 def eggStringToExpr (s : String) (expectedType : Option Expr := none) : TermElabM Expr := do
+  logInfo m!"Received string {s} from Rust"
+  let eggStx ← eggStringToStx s
+  logInfo m!"Syntax is {eggStx}"
+  let res := eggSyntaxToSymbolLang eggStx
+  match res with
+  | .ok l => do
+      let e ← symbolLangToExpr l expectedType
+      return e
+  | .error msg => throwError msg
+  -- logInfo m!"lang is {lang}"
+
+def eggStringToSymbolLang (s : String) : MetaM SymbolLang := do
+  let eggStx ← eggStringToStx s
+  let res := eggSyntaxToSymbolLang eggStx
+    match res with
+  | .ok l => return l
+  | .error msg => throwError msg
+
+def eggStringToExprSynthesizeMVars (s : String) (expectedType : Option Expr := none) : TermElabM Expr := do
   logInfo m!"Received string {s} from Rust"
   let eggStx ← eggStringToStx s
   logInfo m!"Syntax is {eggStx}"

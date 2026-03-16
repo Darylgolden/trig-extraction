@@ -88,7 +88,7 @@ elab "#runEggTestDirectional" t:term : command => do
     let l ← syntaxToSymbolLang stx'
     let str := SymbolLangToString l
     logInfo m!"Target parsed as {str}"
-    let directed_rw_rules ← parseDirectionalEqualities trigRulesDirectional
+    let directed_rw_rules ← parseDirectionalEqualities combinedRulesDirectional
     let result ← runEggDirectional str directed_rw_rules
     logInfo m!"{result.term}"
     logInfo m!"Explanation: \n {result.explanation}"
@@ -99,7 +99,7 @@ elab "#runEggOnSympyExpr" stx:sympy_expr : command => do
     let l ← parseSympy stx
     let str := SymbolLangToString l
     logInfo m!"Target parsed as {str}"
-    let directed_rw_rules ← parseDirectionalEqualities trigRulesDirectional
+    let directed_rw_rules ← parseDirectionalEqualities combinedRulesDirectional
     let result ← runEggDirectional str directed_rw_rules
     logInfo m!"{result.term}"
     logInfo m!"Explanation: \n {result.explanation}"
@@ -188,7 +188,7 @@ elab "#runOnSympyExprAndCheckProof" stx:sympy_expr : command => do
     let l ← parseSympy stx
     let str := SymbolLangToString l
     logInfo m!"Target parsed as {str}"
-    let directed_rw_rules ← parseDirectionalEqualities trigRulesDirectional
+    let directed_rw_rules ← parseDirectionalEqualities combinedRulesDirectional
     let result ← runEggDirectional str directed_rw_rules
     logInfo m!"{result.term}"
     logInfo m!"Explanation: \n {result.explanation}"
@@ -200,20 +200,81 @@ elab "#runOnSympyExprAndCheckProof" stx:sympy_expr : command => do
       logInfo "Egg failed to simplify"
       return
 
-    -- 3. Parse egg's output back to Lean expr
-    let outputExpr ← eggStringToExpr result.term
-    let inputExpr ← symbolLangToExpr l
 
-    -- 4. Construct the goal: input = output
-    let goal ← mkEq inputExpr outputExpr
-    logInfo m!"Goal: {goal}"
+    let inputStx ← symbolLangToSyntax l
+    let l' ← eggStringToSymbolLang result.term
+    let outputStx ← symbolLangToSyntax l'
+    let goalStx ← `(∀ (x : ℝ), $inputStx = $outputStx)
+    let goal ← elabTerm goalStx none
 
-    -- 5. Try to prove with grind + trig rules
-    let proof? ← tryProveWithGrind goal trigRulesDirectional
+    let proof? ← tryProveWithGrind goal combinedRulesDirectional
 
     match proof? with
     | some _ => logInfo m!"✓ Proved: {goal}"
     | none => logInfo m!"✗ Grind couldn't prove: {goal}"
+
+elab "#runOnSympyExprAndCheckProofStx" stx:sympy_expr : command => do
+  -- Run the simplification and syntax generation inside `liftTermElabM`
+  -- This isolates the `TermElabM` constraints and lets us pull out the Syntaxes
+  let stxPair? ← Command.liftTermElabM do
+    let l ← parseSympy stx
+    let str := SymbolLangToString l
+    logInfo m!"Target parsed as {str}"
+
+    let directed_rw_rules ← parseDirectionalEqualities combinedRulesDirectional
+    let result ← runEggDirectional str directed_rw_rules
+    logInfo m!"{result.term}"
+    logInfo m!"Explanation: \n {result.explanation}"
+    logInfo m!"Log: \n {result.log}"
+
+    if !result.success then
+      logInfo "Egg failed to simplify"
+      return none
+
+    let inputStx ← symbolLangToSyntax l
+    let l' ← eggStringToSymbolLang result.term
+    let outputStx ← symbolLangToSyntax l'
+
+    return some (inputStx, outputStx)
+
+  -- Now back in CommandElabM, build the full example theorem syntax and elaborate it!
+  match stxPair? with
+  | none => pure ()
+  | some (inputStx, outputStx) =>
+    -- Format our rules for the tactic explicitly
+    let ruleNames := trigRulesDirectional.map (·.1)
+    let ruleSyntaxes ← ruleNames.toArray.mapM fun name => do
+      let ident := mkIdent name
+      `(Lean.Parser.Tactic.grindParam| $ident:ident)
+
+    let sepArray := Syntax.TSepArray.ofElems ruleSyntaxes
+
+    -- Construct the exact command syntax that works perfectly as raw text
+    let cmd ← `(example (x : ℝ) : $inputStx = $outputStx := by grind [$sepArray,*])
+    logInfo m!"{cmd}"
+    logInfo m!"Evaluating command directly..."
+    -- Elaborate/Execute the command in the environment
+    -- Get the message state explicitly from the CommandElabM environment
+    let stateBefore ← get
+    let msgsBefore := stateBefore.messages
+
+    -- Elaborate/Execute the command in the environment
+    Command.elabCommand cmd
+
+    let stateAfter ← get
+    let msgsAfter := stateAfter.messages
+
+    -- Output any messages that were generated during elaboration
+    let newMsgs := msgsAfter.unreported.toArray[msgsBefore.unreported.toArray.size:]
+    for msg in newMsgs do
+      -- Convert the raw MessageData to a String
+      let msgString ← msg.data.toString
+      logInfo m!"[Command Output]: {msgString}"
+
+    if msgsAfter.hasErrors && !msgsBefore.hasErrors then
+      logInfo m!"! Grind tactical failure. See the outputs above for context."
+    else
+      logInfo m!"✓ Proved successfully: {inputStx} = {outputStx}"
 
 elab "#test_elab " stx:sympy_expr : command => do
   Command.runTermElabM fun _ => do
