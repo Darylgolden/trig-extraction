@@ -91,7 +91,9 @@ variable (x y : ℝ)
 #sympyToAST sin(x)**(2*sin(x)**2 + cos(2*x) + 1)
 #runEggOnSympyExpr 2*sin(x)**2 + cos(x)**2 - 1
 #runEggOnSympyExpr 1 - cos(x)**2
-#runOnSympyExprAndCheckProof 1 - cos(x)**2
+#runEggOnSympyExpr 1 - cos(x)**2
+#runEggOnSympyExpr 1 - cos(x)**2
+-- #runOnSympyExprAndCheckProof 1 - cos(x)**2
 
 
 

@@ -185,13 +185,16 @@ def tryProveWithGrind (goalType : Expr) (rules : List (Name × Direction)) : Ter
 
 elab "#runOnSympyExprAndCheckProof" stx:sympy_expr : command => do
   Command.runTermElabM fun _ => do
-    -- 1. Parse input
-    let inputAST ← parseSympy stx
-    let inputStr := SymbolLangToString inputAST
+    let l ← parseSympy stx
+    let str := SymbolLangToString l
+    logInfo m!"Target parsed as {str}"
+    let directed_rw_rules ← parseDirectionalEqualities trigRulesDirectional
+    let result ← runEggDirectional str directed_rw_rules
+    logInfo m!"{result.term}"
+    logInfo m!"Explanation: \n {result.explanation}"
+    logInfo m!"Log: \n {result.log}"
 
-    -- 2. Run egg to find simplified form
-    let directed_rw_rules ← parseDirectionalEqualities testDirectionalRule
-    let result ← runEggDirectional inputStr directed_rw_rules
+    -- logInfo m!"Explanation: {result.explanation}"
 
     if !result.success then
       logInfo "Egg failed to simplify"
@@ -199,11 +202,7 @@ elab "#runOnSympyExprAndCheckProof" stx:sympy_expr : command => do
 
     -- 3. Parse egg's output back to Lean expr
     let outputExpr ← eggStringToExpr result.term
-    let inputExpr ← symbolLangToExpr inputAST
-    logInfo m!"Input egg string: {inputStr}"
-    logInfo m!"Output egg string: {result.term}"
-    logInfo m!"Input expr: {inputExpr}"
-    logInfo m!"Output expr: {outputExpr}"
+    let inputExpr ← symbolLangToExpr l
 
     -- 4. Construct the goal: input = output
     let goal ← mkEq inputExpr outputExpr
@@ -215,3 +214,14 @@ elab "#runOnSympyExprAndCheckProof" stx:sympy_expr : command => do
     match proof? with
     | some _ => logInfo m!"✓ Proved: {goal}"
     | none => logInfo m!"✗ Grind couldn't prove: {goal}"
+
+elab "#test_elab " stx:sympy_expr : command => do
+  Command.runTermElabM fun _ => do
+    let l ← parseSympy stx
+    let inputExpr ← symbolLangToExpr l
+    logInfo m!"inputExpr = {inputExpr}"
+    let goal ← mkEq inputExpr inputExpr
+    let proof? ← tryProveWithGrind goal trigRulesDirectional
+    match proof? with
+    | some _ => logInfo m!"Proved!"
+    | none => logInfo m!"Failed!"

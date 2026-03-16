@@ -506,6 +506,7 @@ pub extern "C" fn run_egg(target: *const c_char, rws: CRewriteRuleArray, _env: *
 
 #[no_mangle]
 pub extern "C" fn run_egg_directional(target: *const c_char, directed_rws: CDirectedRewriteRuleArray, env: *const c_void) -> EggResult {
+    NN_CACHE.write().unwrap().clear();
     // let count = CALL_COUNTER.fetch_add(1, Ordering::SeqCst);
     // eprintln!("[FFI] This is call number: {}", count);
     // CALL_COUNTER_LOCAL.with(|count| {
@@ -530,11 +531,11 @@ pub extern "C" fn run_egg_directional(target: *const c_char, directed_rws: CDire
     //         // eprintln!("[FFI Test] NormNum failed");
     //     }
     // }
-    let norm_num_result = simplify_with_norm_num("(+ 1 1)".parse().unwrap(), env);
-    match norm_num_result {
-        Ok(res) => eprintln!("Norm num success: {res}"),
-        Err(msg) => eprintln!("Something went wrong: {msg}")
-    }
+    // let norm_num_result = simplify_with_norm_num("(+ 1 1)".parse().unwrap(), env);
+    // match norm_num_result {
+    //     Ok(res) => eprintln!("Norm num success: {res}"),
+    //     Err(msg) => eprintln!("Something went wrong: {msg}")
+    // }
     match result {
         Ok(Ok(egg_result)) => egg_result,
         Ok(Err(error_msg)) => {
