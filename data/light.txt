@@ -1,0 +1,6 @@
+cos(pi/2 + x) == -sin(x)
+tan(tan(x) - sin(x)/cos(x)) == 0
+cos(30*pi/2 + x) == -cos(x)
+sin(x)/cos(x) == tan(x)
+sin(x)*sin(y)/cos(x) == tan(x)*sin(y)
+1/(sin(x)/cos(x)) == 1/tan(x)

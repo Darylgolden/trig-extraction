@@ -331,3 +331,86 @@ elab "#runOnSympyExprAndCheckProofStxTest" stx:sympy_expr : command => do
       logInfo m!"✓ Proved successfully: {inputStx} = {outputStx}"
     catch e =>
       logWarning m!"✗ Grind failed or threw an error: {← e.toMessageData.toString}"
+
+def readTestData (filePath : System.FilePath) : IO (Array (String × String)) := do
+  let lines ← IO.FS.lines filePath
+  let pairs := lines.filterMap fun line =>
+    match line.splitOn " == " with
+    | [lhs, rhs] => some (lhs, rhs)
+    | _ => none
+  return pairs
+
+
+def parseSympyString (str : String) : MetaM SymbolLang := do
+  let env ← getEnv
+  match Parser.runParserCategory env `sympy_expr str with
+  | Except.ok stx =>
+    parseSympy ⟨stx⟩
+  | Except.error err => throwError "Failed to parse sympy expression {str}. Error: {err}"
+
+def runSingleTest (lhsStr rhsStr : String) : TermElabM (Bool × Bool) := do
+  try
+    let lhsTarget ← parseSympyString lhsStr
+    let rhsTarget ← parseSympyString rhsStr
+
+    let lhsParsedStr := SymbolLangToString lhsTarget
+    let rhsParsedStr := SymbolLangToString rhsTarget
+
+    let directed_rw_rules ← parseDirectionalEqualities combinedRulesDirectional
+    let result ← runEggDirectional lhsParsedStr directed_rw_rules
+
+    if !result.success then
+      logInfo m!"[EGG FAIL] Failed to simplify {lhsStr}"
+      return (false, false)
+
+    let lhsOutputStx ← symbolLangToSyntax (← eggStringToSymbolLang result.term)
+    let expectedOutputStx ← symbolLangToSyntax rhsTarget
+
+    let eggSuccess := result.term == rhsParsedStr
+
+    if eggSuccess then
+       logInfo m!"[EGG SUCCESS] {lhsStr} => {rhsStr}"
+    else
+       logInfo m!"[EGG MISMATCH] For {lhsStr}: Expected {rhsParsedStr}, got {result.term}"
+
+    let inputStx ← symbolLangToSyntax lhsTarget
+    let ruleNames := trigRulesDirectional.map (·.1)
+    let ruleSyntaxes ← ruleNames.toArray.mapM fun name => do
+      let ident := mkIdent name
+      `(Lean.Parser.Tactic.grindParam| $ident:ident)
+
+    let sepArray := Syntax.TSepArray.ofElems ruleSyntaxes
+    let fullProofStx ← `(show ∀ (x : ℝ), $inputStx = $lhsOutputStx by grind [$sepArray,*])
+
+    let mut grindSuccess := false
+    try
+      let _proofExpr ← elabTerm fullProofStx none
+      logInfo m!"[GRIND SUCCESS] Proved {lhsStr} = {result.term}"
+      grindSuccess := true
+    catch e =>
+      logWarning m!"[GRIND FAIL] Failed to prove {lhsStr} = {result.term}: {← e.toMessageData.toString}"
+
+    return (eggSuccess, grindSuccess)
+  catch e =>
+    logWarning m!"[TEST ERROR] Exception during test of {lhsStr} == {rhsStr}: {← e.toMessageData.toString}"
+    return (false, false)
+
+elab "#runTestSuite " file:str : command => do
+  let filePath : System.FilePath := file.getString
+  let pairs ← readTestData filePath
+  Command.runTermElabM fun _ => do
+    let mut totalTests := 0
+    let mut eggPassed := 0
+    let mut grindPassed := 0
+
+    logInfo m!"Starting Test Suite on {filePath} (Total Cases: {pairs.size})"
+    for (lhs, rhs) in pairs do
+      totalTests := totalTests + 1
+      let (eggSuccess, grindSuccess) ← runSingleTest lhs rhs
+      if eggSuccess then
+        eggPassed := eggPassed + 1
+      if grindSuccess then
+        grindPassed := grindPassed + 1
+
+    logInfo m!"\n--- TEST SUITE SUMMARY ---\nTotal Tests: {totalTests}\nEgg Successes: {eggPassed}/{totalTests}\nGrind Successes: {grindPassed}/{totalTests}"
+

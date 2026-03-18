@@ -393,9 +393,9 @@ def eggStringToStx (s : String) : MetaM Syntax := do
   | .error msg => throwError s!"{msg}"
 
 def eggStringToExpr (s : String) (expectedType : Option Expr := none) : TermElabM Expr := do
-  logInfo m!"Received string {s} from Rust"
+  -- logInfo m!"Received string {s} from Rust"
   let eggStx ← eggStringToStx s
-  logInfo m!"Syntax is {eggStx}"
+  -- logInfo m!"Syntax is {eggStx}"
   let res := eggSyntaxToSymbolLang eggStx
   match res with
   | .ok l => do

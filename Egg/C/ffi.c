@@ -157,7 +157,17 @@ lean_obj_res run_egg_c(lean_obj_arg target, lean_obj_arg rw_rules, lean_obj_arg 
     lean_obj_res result = egg_result_to_lean(res);
     lean_object* termelabm_state = lean_alloc_ctor(0, 2, 0);
     lean_ctor_set(termelabm_state, 0, result);
-    lean_ctor_set(termelabm_state, 1, x7);
+    lean_ctor_set(termelabm_state, 1, x7); // x7 is transferred to the state
+
+    // Decrement arguments owned by this function
+    lean_dec(target);
+    lean_dec(rw_rules);
+    lean_dec(x1);
+    lean_dec(x2);
+    lean_dec(x3);
+    lean_dec(x4);
+    lean_dec(x5);
+    lean_dec(x6);
 
     // TODO: Is it safe to free this?
     free(rws.ptr);
@@ -175,7 +185,17 @@ lean_obj_res run_egg_directional_c(lean_obj_arg target, lean_obj_arg directed_rw
     lean_obj_res result = egg_result_to_lean(res);
     lean_object* termelabm_state = lean_alloc_ctor(0, 2, 0);
     lean_ctor_set(termelabm_state, 0, result);
-    lean_ctor_set(termelabm_state, 1, x7);
+    lean_ctor_set(termelabm_state, 1, x7); // x7 is transferred to the state
+
+    // Decrement arguments owned by this function
+    lean_dec(target);
+    lean_dec(directed_rw_rules);
+    lean_dec(x1);
+    lean_dec(x2);
+    lean_dec(x3);
+    lean_dec(x4);
+    lean_dec(x5);
+    lean_dec(x6);
 
     // TODO: Is it safe to free this?
     free(directed_rws.ptr);
@@ -189,6 +209,7 @@ lean_obj_res query_egraph_c(b_lean_obj_arg g, lean_obj_arg q) {
     const char* query = lean_string_cstr(q);
     egraph graph = to_egraph(g);
     egg_result result = query_egraph(graph, query);
+    lean_dec(q);
     return egg_result_to_lean(result);    
 }
 

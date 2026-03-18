@@ -33,6 +33,21 @@ lemma mul_cos_mul_cos (x y : ℝ) : cos x * cos y = (1 / 2) * (cos (x - y) + cos
 @[grind _=_]
 lemma mul_sin_mul_sin (x y : ℝ) : sin x * sin y = (1 / 2) * ( cos (x - y) - cos (x + y)) := by grind [Real.two_mul_sin_mul_sin]
 
+-- @[grind _=_]
+-- lemma sin_add_pi (x : ℝ) : sin (x + Real.pi) = -sin x := Real.sin_antiperiodic x
+
+-- @[grind _=_]
+-- lemma cos_add_pi (x : ℝ) : cos (x + Real.pi) = -cos x := Real.cos_antiperiodic x
+
+-- @[grind _=_]
+-- lemma tan_add_pi (x : ℝ) : tan (x + Real.pi) = tan x := Real.tan_periodic x
+
+-- @[grind _=_]
+-- lemma sin_add_two_pi (x : ℝ) : sin (x + 2 * Real.pi) = sin x := Real.sin_periodic x
+
+-- @[grind _=_]
+-- lemma cos_add_two_pi (x : ℝ) : cos (x + 2 * Real.pi) = cos x := Real.cos_periodic x
+
 
 -- field axioms
 def baseRules : List Name :=
@@ -99,11 +114,11 @@ def trigRules : List Name :=
     ``Real.tan_eq_sin_div_cos,
     ``Real.sin_neg,
     ``Real.cos_neg,
-    ``Real.sin_antiperiodic,
-    ``Real.cos_antiperiodic,
-    ``Real.tan_periodic,
-    ``Real.sin_periodic,
-    ``Real.cos_periodic,
+    ``Real.sin_add_pi,
+    ``Real.cos_add_pi,
+    ``Real.tan_add_pi,
+    ``Real.sin_add_two_pi,
+    ``Real.cos_add_two_pi,
     ``Real.sin_zero,
     ``Real.cos_zero,
     ``Real.tan_zero,
@@ -140,11 +155,11 @@ def trigRulesDirectional :=
     (``Real.tan_eq_sin_div_cos, Direction.both),
     (``Real.sin_neg, Direction.both),
     (``Real.cos_neg, Direction.both),
-    (``Real.sin_antiperiodic, Direction.both),
-    (``Real.cos_antiperiodic, Direction.both),
-    (``Real.tan_periodic, Direction.both),
-    (``Real.sin_periodic, Direction.both),
-    (``Real.cos_periodic, Direction.both),
+    (``sin_add_pi, Direction.both),
+    (``cos_add_pi, Direction.both),
+    (``tan_add_pi, Direction.both),
+    (``sin_add_two_pi, Direction.both),
+    (``cos_add_two_pi, Direction.both),
     (``Real.sin_zero, Direction.left_to_right),
     (``Real.cos_zero, Direction.left_to_right),
     (``Real.tan_zero, Direction.left_to_right),
