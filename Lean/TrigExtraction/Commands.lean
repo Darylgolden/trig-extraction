@@ -168,11 +168,18 @@ def tryProveWithGrind (goalType : Expr) (rules : List (Name × Direction)) : Ter
   let ruleSyntaxes ← ruleNames.toArray.mapM fun name => do
     let ident := mkIdent name
     `(Lean.Parser.Tactic.grindParam| $ident:ident)
-  -- let sepArray := Syntax.TSepArray.ofElems ruleSyntaxes
-  let tacticStx ← `(tactic| grind)
+
+  -- Re-enable the sepArray
+  let sepArray := Syntax.TSepArray.ofElems ruleSyntaxes
+
+  -- Interpolate the array directly into the block using the bracket spread syntax!
+  let tacticStx ← `(tactic| grind [$sepArray,*])
+
   try
+    -- Evaluate the tactic against the fresh goal
     let remaining ← Lean.Elab.Tactic.run mvar.mvarId! do
       Lean.Elab.Tactic.evalTactic tacticStx
+
     if remaining.isEmpty then
       return some mvar
     else
@@ -181,6 +188,7 @@ def tryProveWithGrind (goalType : Expr) (rules : List (Name × Direction)) : Ter
   catch e =>
     logInfo m!"Grind threw error: {← e.toMessageData.toString}"
     return none
+
 
 
 elab "#runOnSympyExprAndCheckProof" stx:sympy_expr : command => do
@@ -286,3 +294,40 @@ elab "#test_elab " stx:sympy_expr : command => do
     match proof? with
     | some _ => logInfo m!"Proved!"
     | none => logInfo m!"Failed!"
+
+elab "#runOnSympyExprAndCheckProofStxTest" stx:sympy_expr : command => do
+  Command.runTermElabM fun _ => do
+    let l ← parseSympy stx
+    let str := SymbolLangToString l
+    logInfo m!"Target parsed as {str}"
+
+    let directed_rw_rules ← parseDirectionalEqualities combinedRulesDirectional
+    let result ← runEggDirectional str directed_rw_rules
+
+    if !result.success then
+      logInfo "Egg failed to simplify"
+      return
+
+    let inputStx ← symbolLangToSyntax l
+    let l' ← eggStringToSymbolLang result.term
+    let outputStx ← symbolLangToSyntax l'
+
+    let ruleNames := trigRulesDirectional.map (·.1)
+    let ruleSyntaxes ← ruleNames.toArray.mapM fun name => do
+      let ident := mkIdent name
+      `(Lean.Parser.Tactic.grindParam| $ident:ident)
+
+    let sepArray := Syntax.TSepArray.ofElems ruleSyntaxes
+
+    -- Combine the explicit type instantiation with the tactic block so they elaborate together!
+    let fullProofStx ← `(show ∀ (x : ℝ), $inputStx = $outputStx by grind [$sepArray,*])
+
+    logInfo m!"Evaluating full proof natively..."
+
+    try
+      -- Execute the entire proof natively, catching errors if `grind` fails
+      let _proofExpr ← elabTerm fullProofStx none
+      logInfo m!"{_proofExpr}"
+      logInfo m!"✓ Proved successfully: {inputStx} = {outputStx}"
+    catch e =>
+      logWarning m!"✗ Grind failed or threw an error: {← e.toMessageData.toString}"
